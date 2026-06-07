@@ -23,7 +23,7 @@ llm = ChatOllama(model="llama3.2:3b", temperature=t, base_url="http://127.0.0.1:
 
 def ask(question: str, context: str):
     docs = retriever.invoke(question)
-    context = "\n\n.join([d.page_content for d in docs])"
+    context = "\n\n".join([d.page_content for d in docs])
 
     prompt = f"""Use the following context ONLY to answer the question.
 
@@ -42,5 +42,5 @@ if __name__ == "__main__":
         if question.lower() == "quit" or question.lower() == "exit":
             break
         print(f"\nOkay gimme one second...\n")
-        answer = ask(question)
+        answer = ask(question, "docs/Medicaldataset.csv")
         print(f"I got it! \n{answer}\n")
