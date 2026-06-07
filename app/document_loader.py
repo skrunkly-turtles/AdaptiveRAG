@@ -9,7 +9,7 @@ overlap = 30
 
 def load_and_split(path:str):
     if path.endswith(".csv"): #add other file types as needed. Hopefully not lol
-        loader = CSVLoader(file_path=file_path, encoding="utf-8")
+        loader = CSVLoader(file_path=path, encoding="utf-8")
     else:
         loader = DirectoryLoader(path, glob="**/*.txt", loader_cls=TextLoader)
     documents = loader.load()

@@ -1,5 +1,5 @@
-from app.document_loader import load_and_split
-from app.vector_store import create_vector_store
+from document_loader import load_and_split
+from vector_store import create_vector_store
 from langchain_ollama import ChatOllama
 
 # Global variables I can change at a whim :)
@@ -13,13 +13,13 @@ If the query is out of scope, say "I am unsure".
 """
 
 print("waiting...")
-chunks = load_and_split("docs\Medicaldataset.csv")
+chunks = load_and_split("docs/Medicaldataset.csv")
 
 print("creating the vector store")
 database = create_vector_store(chunks)
 retriever = database.as_retriever(search_kwargs={"k": top})
 
-llm = ChatOllama(model="llama3.2:3b", temperature=t)
+llm = ChatOllama(model="llama3.2:3b", temperature=t, base_url="http://127.0.0.1:11434")
 
 def ask(question: str, context: str):
     docs = retriever.invoke(question)
@@ -37,6 +37,10 @@ def ask(question: str, context: str):
     return answer.content
 
 if __name__ == "__main__":
-    question = "INSERT TEST QUESTION"
-    print(f"\nQ:{question}")
-    print(f"A:{ask(question)}")
+    while True:
+        question = input("What's your question? ")
+        if question.lower() == "quit" or question.lower() == "exit":
+            break
+        print(f"\nOkay gimme one second...\n")
+        answer = ask(question)
+        print(f"I got it! \n{answer}\n")
