@@ -1,7 +1,8 @@
-from document_loader import load_and_split
-from vector_store import create_vector_store
+from document_loader1 import load_and_split
+from vector_store1 import create_vector_store
 import ollama
 import subprocess
+import os
 
 def ensure_models():
     models = ["llama3.2:3b", "nomic-embed-text"]
@@ -22,7 +23,20 @@ If the query is out of scope, say "I am unsure".
 """
 
 print("waiting...")
-chunks = load_and_split("docs/Medicaldataset.csv")
+# This is to load all of the csv files!
+docs_folder = "docs"
+all_chunks = []
+for filename in os.listdir(docs_folder):
+    if filename.endswith(".csv"):
+        file_path = os.path.join(docs_folder, filename)
+        print(f"Loading and splitting: {file_path}")
+        try:
+            file_chunks = load_and_split(file_path)
+            all_chunks.extend(file_chunks)
+        except Exception as e:
+            print("whoops this csv didn't work")
+
+chunks = all_chunks
 
 print("creating the vector store")
 database = create_vector_store(chunks)
