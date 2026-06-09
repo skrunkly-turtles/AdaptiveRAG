@@ -4,6 +4,8 @@ import ollama
 import subprocess
 import os
 
+import time # This is just to test the amount of time it takes to think, for testing purposes ;)
+
 def ensure_models():
     models = ["llama3.2:3b", "nomic-embed-text"]
     ollama_exe = r"C:\Users\katel\AppData\Local\Programs\Ollama\ollama.exe"
@@ -61,5 +63,8 @@ if __name__ == "__main__":
         if question.lower() in ["quit", "exit"]:
             break
         print(f"\nOkay gimme one second...\n")
+        start = time.time()
         answer = ask(question)
         print(f"I got it! \n{answer}\n")
+        end = time.time()
+        print("This response took ", end - start, " seconds!")
