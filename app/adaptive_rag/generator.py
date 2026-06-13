@@ -11,6 +11,7 @@ This information will be sent to store.py and demo.py
 import random
 import csv
 import time
+import store
 from datetime import datetime
 
 
@@ -67,3 +68,9 @@ def data() -> dict:
         "elevation": weighted_list(ELEVATION_LEVELS, 2),
         "temp": weighted_list(TEMPERATURE, 2)
     }
+
+def start_stream():
+    while True:
+        new_packet = data()
+        store.process_incoming(new_packet)
+        time.sleep(2)
