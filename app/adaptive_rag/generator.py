@@ -72,5 +72,7 @@ def data() -> dict:
 def start_stream():
     while True:
         new_packet = data()
-        store.process_incoming(new_packet)
+        # store.process_incoming(new_packet)
+        print(new_packet)
         time.sleep(2)
+
