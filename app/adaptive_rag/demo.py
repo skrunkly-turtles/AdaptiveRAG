@@ -11,6 +11,8 @@ import generator
 import store
 import time
 import math
+import json
+import asyncio 
 import random # This is just to make a random query
 import ollama # This is my chosen LLM for now
 from pydantic import BaseModel
@@ -41,6 +43,10 @@ QUERY_TYPE_PROMPT = ("""You are a precise router. Your only job is to categorize
                      Query: "How is her current elevation compared to her average elevation?" -> 0
                      Query: "What is the colour of the sky?" -> 2
     """)
+
+CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_POOL and SHORT_TERM_TRENDS, what 
+                         is concerning about this individual?  
+                    """)
 class Query(BaseModel):
     """
     A class representing the query which the Captain agent asks to the Staff agents
@@ -79,12 +85,22 @@ def compute_confidence(response: dict) -> float:
     """
     Return a float which is the average of confidence of each token in the LLM's response
     """
-    logprobs = response.get('prompt_eval_results') or response.get('logprobs', [])
+    logprobs = response.get('logprobs', [])
+
     if not logprobs:
-        print("unable to find confidence")
+        print("Uh oh, we weren't able to get confidence stats!")
         return -1.0
-    probs = [math.exp(logs) for logs in logprobs]
-    return round(sum(probs) / len(probs), 4)
+    try:
+        raw_logs = [item['logprob'] for item in logprobs if 'logprob' in item]
+        if not raw_logs:
+            print("Uh oh, we weren't able to get confidence stats!")
+            return -1.0
+        con = [math.exp(l) for l in raw_logs]
+        return round(sum(con) / len(con), 4)
+    
+    except (TypeError, KeyError, ValueError) as e:
+        print("Uh oh, we weren't able to get confidence stats!")
+        return -1.0
 
 
 # Checks what kind of retrieval we should be doing!
@@ -111,6 +127,34 @@ def type_of_query(query: str) -> int:
         print("Warning! type_of_query failed. Defaulting to 0")
         return 0 # Return both just in case
 
+# This function is responsible for taking in the critical reports when they are created in store.py
+def seen_critical(log: store.Critical) -> Report:
+    """
+    Return a Report based on the critical report that was found deterministically from store.py
+    """
+    start = time.time() 
+    stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
+    stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()})
+
+    data = [log.description, stp_json, stt_json]
+    context_data = ['CRITICAL LOG', 'SHORT_TERM_POOL', 'SHORT_TERM_TRENDS']
+
+    response = ollama.generate(
+        model='llama3.2:3b',
+        system=MAIN_PROMPT,
+        prompt= f"""
+            Context: {data} \n
+            Question: {CRITICAL_LOG_QUESTION}
+        """,
+        logprobs=True
+    )
+    answer = response['response']
+    end = time.time() # End the timer!
+    c = compute_confidence(response)
+
+    report = Report(time=round(end-start, 4), response=answer, data=context_data, confidence=c)
+    return report
+
 # This is the big one! :)
 def response_report(query: Query)-> Report:
     start = time.time() # Start the timer, for data collection reasons
@@ -118,23 +162,29 @@ def response_report(query: Query)-> Report:
 
     # Now we must run pipelines depending on the type of query we have (format this data later, maybe):
     context_data = []
+
+    # These are the json versions of the dictionaries we had. They are easier for the LLM to read
+    stp_json = json.dumps({p.model_dump() for p in store.SHORT_TERM_POOL})
+    stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()})
+    ltt_json = json.dumps({k: v.model_dump() for k, v in store.LONG_TERM_TRENDS.items()})
+
     data = []
     if query_type == -1:
-        data.append(str(store.SHORT_TERM_POOL))
-        data.append(str(store.SHORT_TERM_TRENDS))
+        data.append(stp_json)
+        data.append(stt_json)
 
         context_data.append("SHORT_TERM_POOL")
         context_data.append("SHORT_TERM_TRENDS")
     elif query_type == 0:
-        data.append(str(store.SHORT_TERM_POOL))
-        data.append(str(store.SHORT_TERM_TRENDS))
-        data.append(str(store.LONG_TERM_TRENDS))
+        data.append(stp_json)
+        data.append(stt_json)
+        data.append(ltt_json)
 
         context_data.append("SHORT_TERM_POOL")
         context_data.append("SHORT_TERM_TRENDS")
         context_data.append("LONG_TERM_TRENDS")
     elif query_type == 1:
-        data.append(str(store.LONG_TERM_TRENDS))
+        data.append(ltt_json)
 
         context_data.append("LONG_TERM_TRENDS")
     elif query_type == 2:
@@ -157,10 +207,14 @@ def response_report(query: Query)-> Report:
     report = Report(time=round(end-start, 4), response=answer, data=context_data, confidence=c)
     return report
 
-
+# Yeah so this code is garbage right now, i need to implement asynchio first BALSDFLASJDFLKSAD
 if __name__ == '__main__':
     print("Ok I'm listening!")
 
     while True:
         generator.start_stream() # This makes the generator make data every two seconds.
-
+        n = random.random()
+        if n > 0.8: # A 20% chance that a query is asked :)
+            q= ask_query()
+            response_report(q)
+        time.sleep(5) # Wait every five seconds

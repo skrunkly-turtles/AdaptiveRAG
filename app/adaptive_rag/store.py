@@ -7,12 +7,13 @@ It is responsible for taking the data from generator.py and storing it properly 
 from pydantic import BaseModel
 from datetime import datetime
 import generator
+import demo
 import csv
 import os
 
-SHORT_TERM_POOL = [] # This is an ordered list of dictionaries of data from the past 60 seconds
-LONG_TERM_TRENDS = {} # This is a dictionary of all the trends from each category of all time
-SHORT_TERM_TRENDS = {} # This is a dictionary of all the trends from each category only from the SHORT_TERM_POOL
+SHORT_TERM_POOL = {} # This is a set of Sensors of data from the past 60 seconds
+LONG_TERM_TRENDS = {} # This is a dictionary of all the Trends from each category of all time
+SHORT_TERM_TRENDS = {} # This is a dictionary of all the Trends from each category only from the SHORT_TERM_POOL
 CRITICAL_CSV = "critical_readings_log.csv" #A running csv file that will track all the critical logs
 
 # This is just the model that holds critical information for CRITICAL_CSV
@@ -24,9 +25,11 @@ class Critical(BaseModel):
       metric: str
       value: float
       severity: str
+      description: str
 
 # This method just adds a new reading to the csv
 def log_critical(reading: Critical, file_path: str=CRITICAL_CSV) -> None:
+      demo.seen_critical(reading) # Alerts the LLM that we have logged a new critical alert
       file_exists = os.path.exists(file_path)
 
       with open(file_path, mode='a', newline = '', encoding='utf-8') as file:
@@ -75,15 +78,27 @@ def process_incoming(data:dict) -> None:
             metric='hr',
             value=packet.hr,
             severity='HIGH',
+            description= f"Heart rate is abnormal, at {packet.hr} bpm when recent average has been {SHORT_TERM_POOL['hr'].avg}"
         )
         log_critical(alarm)
     
+    if packet.o2 < 100 and packet.o2 > 90:
+        alarm = Critical(
+            time = packet.time,
+            metric = 'o2',
+            value = packet.o2,
+            severity='MEDIUM',
+            description=f"O2 stats are low, at {packet.o2} when recent average has been {SHORT_TERM_POOL['o2'].avg}"
+        )
+        log_critical(alarm)
+
     if packet.o2 < 90:
         alarm = Critical(
             time = packet.time,
             metric = 'o2',
             value = packet.o2,
-            severity='HIGH'
+            severity='HIGH',
+            description=f"O2 stats are dangerously low, at {packet.o2} when recent average has been {SHORT_TERM_POOL['o2'].avg}"
         )
         log_critical(alarm)
     
@@ -92,7 +107,8 @@ def process_incoming(data:dict) -> None:
             time = packet.time,
             metric = 'temp',
             value = packet.temp,
-            severity = 'MEDIUM'
+            severity = 'MEDIUM',
+            description=f"Temperature is a little high, at {packet.temp}"
         )
         log_critical(alarm)
     
@@ -101,7 +117,8 @@ def process_incoming(data:dict) -> None:
             time = packet.time,
             metric = 'temp',
             value = packet.temp,
-            severity = 'HIGH'
+            severity = 'HIGH',
+            description=f"temperature is extremely high, at {packet.temp}"
         )
         log_critical(alarm)
 
@@ -215,5 +232,4 @@ def shorttrends()-> None:
         o2.avg = o2_count/o2.total
         temp.avg = temp_count/temp.total
         el.avg = el_count/el.total
-            
             
