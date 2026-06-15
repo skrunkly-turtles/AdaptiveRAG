@@ -11,7 +11,7 @@ import demo
 import csv
 import os
 
-SHORT_TERM_POOL = {} # This is a set of Sensors of data from the past 60 seconds
+SHORT_TERM_POOL = [] # This is a list of Sensors of data from the past 60 seconds
 LONG_TERM_TRENDS = {} # This is a dictionary of all the Trends from each category of all time
 SHORT_TERM_TRENDS = {} # This is a dictionary of all the Trends from each category only from the SHORT_TERM_POOL
 CRITICAL_CSV = "critical_readings_log.csv" #A running csv file that will track all the critical logs

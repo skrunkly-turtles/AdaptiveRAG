@@ -12,6 +12,7 @@ import random
 import csv
 import time
 import store
+import asyncio
 from datetime import datetime
 
 
@@ -69,10 +70,9 @@ def data() -> dict:
         "temp": weighted_list(TEMPERATURE, 2)
     }
 
-def start_stream():
-    while True:
-        new_packet = data()
-        # store.process_incoming(new_packet)
-        print(new_packet)
-        time.sleep(2)
+async def start_stream():
+    new_packet = data()
+    store.process_incoming(new_packet)
+    print(new_packet)
+    await asyncio.sleep(2)
 

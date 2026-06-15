@@ -104,13 +104,13 @@ def compute_confidence(response: dict) -> float:
 
 
 # Checks what kind of retrieval we should be doing!
-def type_of_query(query: str) -> int:
+async def type_of_query(query: str) -> int:
     """
     Return an integer based on whether the query is a short_term_trend, long_term_trend, or both. Returns -1 for 
     a short_term only, 1 for long_term only, 0 for both, 2 for no retrieval needed
     """
     valid = {-1, 0, 1, 2} # Just for validity checking
-    response=ollama.generate(
+    response= await ollama.AsyncClient().generate(
         model='phi3', # We use a tiny LLM for this task, because it should be relatively simple :)
         system=QUERY_TYPE_PROMPT,
         prompt=query
@@ -156,15 +156,15 @@ def seen_critical(log: store.Critical) -> Report:
     return report
 
 # This is the big one! :)
-def response_report(query: Query)-> Report:
+async def response_report(query: Query)-> Report:
     start = time.time() # Start the timer, for data collection reasons
-    query_type = type_of_query(query.query)
+    query_type = await type_of_query(query.query)
 
     # Now we must run pipelines depending on the type of query we have (format this data later, maybe):
     context_data = []
 
     # These are the json versions of the dictionaries we had. They are easier for the LLM to read
-    stp_json = json.dumps({p.model_dump() for p in store.SHORT_TERM_POOL})
+    stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL])
     stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()})
     ltt_json = json.dumps({k: v.model_dump() for k, v in store.LONG_TERM_TRENDS.items()})
 
@@ -191,7 +191,7 @@ def response_report(query: Query)-> Report:
         data.append("No context needed")
         context_data.append('No context needed')
     
-    response = ollama.generate(
+    response = await ollama.AsyncClient().generate(
         model='llama3.2:3b',
         system=MAIN_PROMPT,
         prompt= f"""
@@ -207,14 +207,23 @@ def response_report(query: Query)-> Report:
     report = Report(time=round(end-start, 4), response=answer, data=context_data, confidence=c)
     return report
 
-# Yeah so this code is garbage right now, i need to implement asynchio first BALSDFLASJDFLKSAD
-if __name__ == '__main__':
-    print("Ok I'm listening!")
-
+# This makes a loop to retrieve and run a response
+async def run_response():
     while True:
-        generator.start_stream() # This makes the generator make data every two seconds.
         n = random.random()
         if n > 0.8: # A 20% chance that a query is asked :)
             q= ask_query()
-            response_report(q)
-        time.sleep(5) # Wait every five seconds
+            await response_report(q)
+        await asyncio.sleep(5) # Wait every five seconds
+
+
+async def main():
+    await asyncio.gather(
+        generator.start_stream(), # This makes the generator make data every two seconds.
+        run_response()
+    )
+
+# Yeah so this code is garbage right now, i need to implement asynchio first BALSDFLASJDFLKSAD
+if __name__ == '__main__':
+    print("Ok I'm listening!")
+    asyncio.run(main())
