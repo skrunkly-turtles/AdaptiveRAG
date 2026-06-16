@@ -8,12 +8,37 @@ In the form of a dictionary
 
 This information will be sent to store.py and demo.py
 """
+import os
 import random
 import csv
 import time
 import store
 import asyncio
 from datetime import datetime
+
+LOGS = "logs.csv" # A temporary csv just to log all the logs :DD
+
+# Clears the log csv
+try:
+    with open(LOGS, mode='w', newline='', encoding='utf-8') as _file:
+        _writer= csv.DictWriter(_file, fieldnames=list(store.Sensor.model_fields.keys()))
+except Exception as e:
+    print("Uh oh, we couldn't clear the csv file :(")
+
+# Just a temporary function
+def record_runs(reading: store.Sensor, file_path: str=LOGS) -> None:
+    """
+    A temporary function to log all the generated data in a log.
+    """
+    file_exists = os.path.exists(file_path)
+    
+    with open(file_path, mode='a', newline = '', encoding='utf-8') as file:
+        fieldnames = list(reading.model_fields.keys())
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        row_data = reading.model_dump(mode='json')
+        writer.writerow(row_data)
 
 
 def weighted_list(ranges, dec):
@@ -62,7 +87,7 @@ def data() -> dict:
     """
     Return a dictionary with randomly generated data.
     """
-    return{
+    return {
         "time": datetime.now().isoformat(),
         "hr": int(weighted_list(HEART_RATE_RANGES, 0)),
         "o2": weighted_list(OXYGEN_RANGES, 2),
@@ -71,8 +96,9 @@ def data() -> dict:
     }
 
 async def start_stream():
-    new_packet = data()
-    store.process_incoming(new_packet)
-    print(new_packet)
-    await asyncio.sleep(2)
+    while True:
+        new_packet = data()
+        # print(new_packet)
+        await store.process_incoming(new_packet)
+        await asyncio.sleep(2)
 

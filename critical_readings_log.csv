@@ -1,0 +1,7 @@
+time,metric,value,severity,description
+2026-06-16T10:01:07.835019,o2,96.6,MEDIUM,"O2 stats are low, at 96.6"
+2026-06-16T10:02:18.366877,o2,95.23,MEDIUM,"O2 stats are low, at 95.23"
+2026-06-16T10:03:58.937793,o2,96.09,MEDIUM,"O2 stats are low, at 96.09"
+2026-06-16T10:12:57.752645,o2,99.69,MEDIUM,"O2 stats are low, at 99.69 when recent average has been "
+2026-06-16T10:12:57.752645,temp,55.74,MEDIUM,"Temperature is a little high, at 55.74"
+2026-06-16T10:19:43.196242,o2,96.52,MEDIUM,"O2 stats are low, at 96.52 when recent average has been "

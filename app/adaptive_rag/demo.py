@@ -7,6 +7,7 @@ This is where the LLM lives, and the "brain" of the operation exists. It must do
 (2) Respond to the query with relevant information from store.py 
 (3) Automatically flag any warnings every 2 seconds either from (1) the incoming packet or (2) a dangerous change in SHORT_TERM_TREND 
 """
+import os
 import generator
 import store
 import time
@@ -18,18 +19,21 @@ import ollama # This is my chosen LLM for now
 from pydantic import BaseModel
 from datetime import datetime
 
+client = ollama.AsyncClient()
+
+# Here are all the prompts we are using!
 MAIN_PROMPT = ("""You are a highly cost-effective agent for emergency services. Your responses must be direct, 
     accurate, and completely grounded in the data retrieved. Do not guess numbers - if latency has been prioritized,
-    simply say "I don't know" or give clear ballpark ranges.
+    simply say "I don't know" or give clear ballpark ranges. If there is no data, ONLY respond with: "No relevant data yet".
     """)
 
 QUERY_TYPE_PROMPT = ("""You are a precise router. Your only job is to categorize the scope of the query into a single 
-                     integer. You will output exactly one integer from this list: [-1, 0, 1, 2]. Do NOT include
+                     integer. You will output exactly one integer from this list: [-2, -1, 0, 1, 2]. Do NOT include
                      any other letters, numbers, formatting, or characters. 
 
                      Here is what each number means:
-                     -1: Choose this if the query uses words such as "right now", "currently", "recently", or semantics
-                        which suggest ONLY data from the short term is needed.
+                     -2: Choose this if the query ONLY requires data last generated. It will use the words "last" or "right now" or "currently"
+                     -1: Choose this if the query requires averages from the past minute. It will use words such as "recent" and "short-term"
                      1: Choose this if the query uses words such as: "average", "all-time", and focuses on the overall
                         history, maximums, minimums, trends, or past behaviour. 
                      0: Choose this if the query references or compares short term behaviour or the present moment,
@@ -38,15 +42,27 @@ QUERY_TYPE_PROMPT = ("""You are a precise router. Your only job is to categorize
                         to concrete sensor data. 
                      
                      Examples:
-                     Query: "What is his heart rate right now?" -> -1 
+                     Query: "What is his heart rate right now?" -> -2 
+                     Query: "What is their recent elevation average?" -> -1
                      Query: "What is her average O2 stat?" -> 1
                      Query: "How is her current elevation compared to her average elevation?" -> 0
                      Query: "What is the colour of the sky?" -> 2
     """)
 
-CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_POOL and SHORT_TERM_TRENDS, what 
-                         is concerning about this individual?  
+CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_TRENDS, give a concise report in this format:
+                         Concerning data point(s): the direct statistic that is critical
+                         Summary: a 1-2 sentence summary and description
+                         
+                        Example:
+                         Concerning data point(s): hr: 250bpm, temp: 100
+                         Summary: Heart rate is dangerously high, possibly due to abnormally high heat. 
                     """)
+
+# Here are the places we are logging all responses, to clear up the terminal!
+CRITICAL_RESPONSES = "critical_reports.txt" # The critical reports go here
+QUERY_RESPONSES = "query_report.txt" # The query full reports go here!
+
+# The Pydantic base models are here :)
 class Query(BaseModel):
     """
     A class representing the query which the Captain agent asks to the Staff agents
@@ -64,10 +80,30 @@ class Report(BaseModel):
     data: list[str] # A list of data that it used
     confidence: float # A percentage of how confident the LLM was with the answer.
 
+# We are clearing the txt files
+try:
+    with open(QUERY_RESPONSES, mode='w') as _file:
+        _file.write('')
+except Exception as e:
+    print("Uh oh, we couldn't clear the query txt file :(")
+
+try:
+    with open(CRITICAL_RESPONSES, mode='w') as _file:
+        _file.write('')
+except Exception as e:
+    print("Uh oh, we couldn't clear the critical response txt file :(")
+
+# Log it!
+def log_report(r: Report, file: str)-> None:
+    """
+    Appends new report to critical_report.txt
+    """
+    with open(file, mode='a') as f:
+        f.write(f"Time: {time.time()} \n Report: {r.response} \n Time taken: {r.time} | Data used: {r.data} | Confidence: {r.confidence} \n")
 
 # Returns a Query! This is the structure of the output from the first LLM. 
 def ask_query() -> Query:
-    q = choose_question()
+    q = input("Ask a question: ")
     u = round(random.random(), 2)
     r = "this reason will be filled out later. ignore for now"
 
@@ -75,9 +111,16 @@ def ask_query() -> Query:
 
 # Chooses a question based on query.txt. This should be replaced soon with another LLM agent. 
 def choose_question() -> str:
-    with open("query.txt", "r") as file:
+    base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, "query.txt")
+
+    with open(path, "r", encoding='utf-8') as file:
         lines = file.read().splitlines()
+
+        if not lines:
+            raise ValueError("query.txt is empty and you are stupid :D")
         question = random.choice(lines)
+    print(question)
     return question
 
 # This just finds the confidence the LLM had in the response. This might be useful for the urgency token later
@@ -106,54 +149,65 @@ def compute_confidence(response: dict) -> float:
 # Checks what kind of retrieval we should be doing!
 async def type_of_query(query: str) -> int:
     """
-    Return an integer based on whether the query is a short_term_trend, long_term_trend, or both. Returns -1 for 
-    a short_term only, 1 for long_term only, 0 for both, 2 for no retrieval needed
+    Return an integer based on whether the query is a short_term_trend, long_term_trend, or both. Returns -2 for 
+    only the last item, -1 for a short_term only, 1 for long_term only, 0 for both, 2 for no retrieval needed
     """
-    valid = {-1, 0, 1, 2} # Just for validity checking
-    response= await ollama.AsyncClient().generate(
-        model='phi3', # We use a tiny LLM for this task, because it should be relatively simple :)
+    start = time.time()
+
+    valid = {-2, -1, 0, 1, 2} # Just for validity checking
+    response= await client.generate(
+        model='phi3', # We use a tiny LLM for this task, because it should be relatively simple :) 
         system=QUERY_TYPE_PROMPT,
         prompt=query
     )
     r = response['response'].strip()
+    end = time.time()
     
     # Value check!
     try:
         result = int(r)
         if result not in valid:
             raise ValueError(f"Unexpected value! {result}")
+        print(f"Query type:{result} | Time taken: {end - start}")
         return result
     except (ValueError, KeyError) as e:
         print("Warning! type_of_query failed. Defaulting to 0")
         return 0 # Return both just in case
 
+
 # This function is responsible for taking in the critical reports when they are created in store.py
-def seen_critical(log: store.Critical) -> Report:
+async def seen_critical(log: store.Critical) -> Report:
     """
     Return a Report based on the critical report that was found deterministically from store.py
     """
     start = time.time() 
-    stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
-    stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()})
+    l = len(store.SHORT_TERM_POOL) - 1
+    last_json = store.SHORT_TERM_POOL[l].model_dump()
+    # stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
+    stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()}, default=str)
 
-    data = [log.description, stp_json, stt_json]
-    context_data = ['CRITICAL LOG', 'SHORT_TERM_POOL', 'SHORT_TERM_TRENDS']
+    data = [log.description,  last_json, stt_json] # We can add stp_json to this too
+    context_data = ['CRITICAL LOG', "LAST_DATA", 'SHORT_TERM_TRENDS'] # We can add 'SHORT_TERM_POOL' to this too
 
-    response = ollama.generate(
+    response = await client.generate(
         model='llama3.2:3b',
         system=MAIN_PROMPT,
         prompt= f"""
             Context: {data} \n
             Question: {CRITICAL_LOG_QUESTION}
         """,
-        logprobs=True
+        options={'logprobs':True}
     )
     answer = response['response']
     end = time.time() # End the timer!
     c = compute_confidence(response)
 
     report = Report(time=round(end-start, 4), response=answer, data=context_data, confidence=c)
+    log_report(report, CRITICAL_RESPONSES) # Log it into the txt file
+    print(f"There was a critical alert! Check critical_reports for full report!")
+    
     return report
+
 
 # This is the big one! :)
 async def response_report(query: Query)-> Report:
@@ -164,25 +218,35 @@ async def response_report(query: Query)-> Report:
     context_data = []
 
     # These are the json versions of the dictionaries we had. They are easier for the LLM to read
-    stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL])
-    stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()})
-    ltt_json = json.dumps({k: v.model_dump() for k, v in store.LONG_TERM_TRENDS.items()})
+    stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
+    stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()}, default=str)
+    ltt_json = json.dumps({k: v.model_dump() for k, v in store.LONG_TERM_TRENDS.items()}, default=str)
+    l = len(store.SHORT_TERM_POOL) - 1
+    last_json = store.SHORT_TERM_POOL[l].model_dump()
 
     data = []
+    if query_type == -2:
+        data.append(last_json)
+
+        context_data.append("LAST_DATA")
     if query_type == -1:
         data.append(stp_json)
         data.append(stt_json)
+        data.append(last_json)
 
         context_data.append("SHORT_TERM_POOL")
         context_data.append("SHORT_TERM_TRENDS")
+        context_data.append("LAST_DATA")
     elif query_type == 0:
         data.append(stp_json)
         data.append(stt_json)
         data.append(ltt_json)
+        data.append(last_json)
 
         context_data.append("SHORT_TERM_POOL")
         context_data.append("SHORT_TERM_TRENDS")
         context_data.append("LONG_TERM_TRENDS")
+        context_data.append("LAST_DATA")
     elif query_type == 1:
         data.append(ltt_json)
 
@@ -191,14 +255,14 @@ async def response_report(query: Query)-> Report:
         data.append("No context needed")
         context_data.append('No context needed')
     
-    response = await ollama.AsyncClient().generate(
+    response = await client.generate(
         model='llama3.2:3b',
         system=MAIN_PROMPT,
         prompt= f"""
             Context: {data} \n
             Question: {query.query}
         """,
-        logprobs=True
+        options={'logprobs':True}
     )
     answer = response['response']
     end = time.time() # End the timer!
@@ -212,18 +276,21 @@ async def run_response():
     while True:
         n = random.random()
         if n > 0.8: # A 20% chance that a query is asked :)
+
             q= ask_query()
-            await response_report(q)
+            r = await response_report(q)
+            print(f"I have my answer! \n {r.response} \n \n Here are some metrics: Data Used: {r.data} | Time Taken: {r.time} | Confidence: {r.confidence}")
+        
         await asyncio.sleep(5) # Wait every five seconds
 
 
 async def main():
     await asyncio.gather(
         generator.start_stream(), # This makes the generator make data every two seconds.
-        run_response()
+        run_response(),
     )
 
 # Yeah so this code is garbage right now, i need to implement asynchio first BALSDFLASJDFLKSAD
 if __name__ == '__main__':
-    print("Ok I'm listening!")
+    print("Hi, my name is Jesslyn. I'm listening!")
     asyncio.run(main())

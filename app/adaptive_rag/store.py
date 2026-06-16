@@ -6,6 +6,7 @@ It is responsible for taking the data from generator.py and storing it properly 
 """
 from pydantic import BaseModel
 from datetime import datetime
+import asyncio
 import generator
 import demo
 import csv
@@ -27,9 +28,16 @@ class Critical(BaseModel):
       severity: str
       description: str
 
+# Clears the CSV file once!
+try:
+    with open(CRITICAL_CSV, mode='w', newline='', encoding='utf-8') as _file:
+        _writer= csv.DictWriter(_file, fieldnames=list(Critical.model_fields.keys()))
+except Exception as e:
+    print("Uh oh, we couldn't clear the csv file :(")
+
 # This method just adds a new reading to the csv
-def log_critical(reading: Critical, file_path: str=CRITICAL_CSV) -> None:
-      demo.seen_critical(reading) # Alerts the LLM that we have logged a new critical alert
+async def log_critical(reading: Critical, file_path: str=CRITICAL_CSV) -> None:
+      asyncio.create_task(demo.seen_critical(reading)) # Alerts the LLM that we have logged a new critical alert
       file_exists = os.path.exists(file_path)
 
       with open(file_path, mode='a', newline = '', encoding='utf-8') as file:
@@ -64,43 +72,47 @@ class Sensor(BaseModel):
     temp: float
 
 # This is where we process the data!
-def process_incoming(data:dict) -> None:
+async def process_incoming(data:dict) -> None:
     """
     Validates the data that comes in from generator.py
     """
     # Validate the data
     packet = Sensor(**data)
+    generator.record_runs(packet) # To log into the temporary log 
     
     # Deterministic alerts!
     if packet.hr < 20 or packet.hr > 240:
+        recent = round(SHORT_TERM_TRENDS['hr'].avg, 4) if 'hr' in SHORT_TERM_TRENDS else ""
         alarm = Critical(
             time=packet.time,
             metric='hr',
             value=packet.hr,
             severity='HIGH',
-            description= f"Heart rate is abnormal, at {packet.hr} bpm when recent average has been {SHORT_TERM_POOL['hr'].avg}"
+            description= f"Heart rate is abnormal, at {packet.hr} bpm when recent average has been {recent}"
         )
-        log_critical(alarm)
+        await log_critical(alarm)
     
-    if packet.o2 < 100 and packet.o2 > 90:
+    if packet.o2 < 95 and packet.o2 > 90:
+        recent = round(SHORT_TERM_TRENDS['o2'].avg, 4) if 'o2' in SHORT_TERM_TRENDS else ""
         alarm = Critical(
             time = packet.time,
             metric = 'o2',
             value = packet.o2,
             severity='MEDIUM',
-            description=f"O2 stats are low, at {packet.o2} when recent average has been {SHORT_TERM_POOL['o2'].avg}"
+            description=f"O2 stats are low, at {packet.o2} when recent average has been {recent}"
         )
-        log_critical(alarm)
+        await log_critical(alarm)
 
     if packet.o2 < 90:
+        recent = round(SHORT_TERM_TRENDS['o2'].avg, 4) if 'o2' in SHORT_TERM_TRENDS else ""
         alarm = Critical(
             time = packet.time,
             metric = 'o2',
             value = packet.o2,
             severity='HIGH',
-            description=f"O2 stats are dangerously low, at {packet.o2} when recent average has been {SHORT_TERM_POOL['o2'].avg}"
+            description=f"O2 stats are dangerously low, at {packet.o2} when recent average has been {recent}"
         )
-        log_critical(alarm)
+        await log_critical(alarm)
     
     if packet.temp > 40 and packet.temp < 100:
         alarm = Critical(
@@ -110,7 +122,7 @@ def process_incoming(data:dict) -> None:
             severity = 'MEDIUM',
             description=f"Temperature is a little high, at {packet.temp}"
         )
-        log_critical(alarm)
+        await log_critical(alarm)
     
     if packet.temp > 100:
         alarm = Critical(
@@ -120,7 +132,7 @@ def process_incoming(data:dict) -> None:
             severity = 'HIGH',
             description=f"temperature is extremely high, at {packet.temp}"
         )
-        log_critical(alarm)
+        await log_critical(alarm)
 
     # We also want to add to the short term pool, and take away from the oldest value
     if len(SHORT_TERM_POOL) > 30:
