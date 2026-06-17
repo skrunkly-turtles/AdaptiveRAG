@@ -15,6 +15,7 @@ import os
 SHORT_TERM_POOL = [] # This is a list of Sensors of data from the past 60 seconds
 LONG_TERM_TRENDS = {} # This is a dictionary of all the Trends from each category of all time
 SHORT_TERM_TRENDS = {} # This is a dictionary of all the Trends from each category only from the SHORT_TERM_POOL
+CATEGORICAL_CONGLOMERATE = {'hr': [], 'o2': [], 'temp':[], 'elevation': []} # This is a fat dictionary of all the data sectioned off into their seperate categories
 CRITICAL_CSV = "critical_readings_log.csv" #A running csv file that will track all the critical logs
 
 # This is just the model that holds critical information for CRITICAL_CSV
@@ -70,6 +71,20 @@ class Sensor(BaseModel):
     o2: float
     elevation: float
     temp: float
+
+
+def get_context() -> list:
+    """
+    Return a list of the length of all data pools
+    """
+    stp = len(SHORT_TERM_POOL)
+    stt = len(SHORT_TERM_TRENDS)
+    ltt = len(LONG_TERM_TRENDS)
+    hr = len(CATEGORICAL_CONGLOMERATE['hr'])
+    o2 = len(CATEGORICAL_CONGLOMERATE['o2'])
+    t = len(CATEGORICAL_CONGLOMERATE['temp'])
+    e = len(CATEGORICAL_CONGLOMERATE['elevation'])
+    return [stp, stt, ltt, hr, o2, t, e, 3]
 
 # This is where we process the data!
 async def process_incoming(data:dict) -> None:
@@ -142,7 +157,16 @@ async def process_incoming(data:dict) -> None:
     # We are adding to, and updating, the long term trends and short term trend
     longtrends(packet)
     shorttrends()
+    add_conglomerate(packet)
     
+def add_conglomerate(packet: Sensor) -> None:
+    """
+    Append to CATEGORICAL_CONGLOMERATE with new updated packet.
+    """
+    CATEGORICAL_CONGLOMERATE['hr'].append(packet.hr)
+    CATEGORICAL_CONGLOMERATE['o2'].append(packet.o2)
+    CATEGORICAL_CONGLOMERATE['temp'].append(packet.temp)
+    CATEGORICAL_CONGLOMERATE['elevation'].append(packet.elevation)
 
 def longtrends(packet: Sensor) -> None:
     """

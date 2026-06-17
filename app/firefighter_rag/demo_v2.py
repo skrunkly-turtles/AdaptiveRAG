@@ -27,27 +27,24 @@ MAIN_PROMPT = ("""You are a highly cost-effective agent for emergency services. 
     simply say "I don't know" or give clear ballpark ranges. If there is no data, ONLY respond with: "No relevant data yet".
     """)
 
-QUERY_TYPE_PROMPT = ("""You are a precise router. Your only job is to categorize the scope of the query into a single 
-                     integer. You will output exactly one integer from this list: [-2, -1, 0, 1, 2]. Do NOT include
-                     any other letters, numbers, formatting, or characters. 
+QUERY_TYPE_PROMPT = f"""You are a precise router. Select ONLY the integers which correspond to data needed to answer the query. Prioritize options with 
+                        lowest sizes while still maintaining high confidence. 
 
-                     Here is what each number means:
-                     -2: Choose this if the query ONLY requires data last generated. It will use the words "last" or "right now" or "currently"
-                     -1: Choose this if the query requires averages from the past minute. It will use words such as "recent" and "short-term"
-                     1: Choose this if the query uses words such as: "average", "all-time", and focuses on the overall
-                        history, maximums, minimums, trends, or past behaviour. 
-                     0: Choose this if the query references or compares short term behaviour or the present moment,
-                      with overall history and the past. 
-                     2: Choose this if the query is a meta-question, a greeting, a conversation, or is otherwise unrelated
-                        to concrete sensor data. 
+                     Here is what each number which can be added to QueryType items means:
+                     0: (All the data from all categories from the past 60 seconds) | Size: {store.get_context()[0]}
+                     1: (min, max, avg, num items summaries for EACH category ONLY from the past 60 seconds) | Size: {store.get_context()[1]}
+                     2: (min, max, avg, total items summaries for EACH category from ALL TIME) | Size: {store.get_context()[2]}
+                     3: (CATEGORICAL_CONGLOMERATE['hr'], a list of ALL data from Heart Rate) | Size: {store.get_context()[3]}
+                     4: (CATEGORICAL_CONGLOMERATE['o2'], a list of ALL data from Oxygen) | Size: {store.get_context()[4]}
+                     5: (CATEGORICAL_CONGLOMERATE['temp'], a list of ALL data from Temperature) | Size: {store.get_context()[5]}
+                     6: (CATEGORICAL_CONGLOMERATE['elevation'], a list of ALL data from Elevation) | Size: {store.get_context()[6]}
+                     7: (A dictionary of ONLY the most recent data.) | Size: {store.get_context()[7]}
                      
                      Examples:
-                     Query: "What is his heart rate right now?" -> -2 
-                     Query: "What is their recent elevation average?" -> -1
-                     Query: "What is her average O2 stat?" -> 1
-                     Query: "How is her current elevation compared to her average elevation?" -> 0
-                     Query: "What is the colour of the sky?" -> 2
-    """)
+                     Query: "What is his heart rate right now?" -> QueryType.items = [7]
+                     Query: "What is their recent elevation average compared to their elevation average of all time?" -> [1, 2]
+                     Query: "What is her average O2 stat?" -> [2]
+    """
 
 CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_TRENDS, give a concise report in this format:
                          Concerning data point(s): the direct statistic that is critical
@@ -62,7 +59,20 @@ CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_
 CRITICAL_RESPONSES = "critical_reports.txt" # The critical reports go here
 QUERY_RESPONSES = "query_report.txt" # The query full reports go here!
 
+
 # The Pydantic base models are here :)
+
+# This is just a list, but in a json file for ollama to output in this format.
+list_schema = {
+    "type": "array",
+    "items":{
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 7,
+    },
+    "uniqueItems": True
+}
+
 class Query(BaseModel):
     """
     A class representing the query which the Captain agent asks to the Staff agents
@@ -147,29 +157,30 @@ def compute_confidence(response: dict) -> float:
 
 
 # Checks what kind of retrieval we should be doing!
-async def type_of_query(query: str) -> int:
+async def type_of_query(query: str, context: list[int]) -> list:
     """
     Return an integer based on whether the query is a short_term_trend, long_term_trend, or both. Returns -2 for 
     only the last item, -1 for a short_term only, 1 for long_term only, 0 for both, 2 for no retrieval needed
     """
     start = time.time()
 
-    valid = {-2, -1, 0, 1, 2} # Just for validity checking
+    valid = {0, 1, 2, 3, 4, 5, 6, 7} # Just for validity checking
     response= await client.generate(
         model='llama3.2:3b', # Switched everything to llama 3.2:3b because why not :)
         system=QUERY_TYPE_PROMPT,
-        prompt=query
+        prompt=f""" Identify and return the minimum required data, given the Size of each data, to answer {query} with high confidence """,
+        format= list_schema()
     )
     r = response['response'].strip()
     end = time.time()
     
     # Value check!
     try:
-        result = int(r)
-        if result not in valid:
+        result = list_schema(r)
+        if any(result.items) not in valid:
             raise ValueError(f"Unexpected value! {result}")
-        print(f"Query type:{result} | Time taken: {round(end - start, 4)}")
-        return result
+        print(f"Data needed:{result.items} | Time taken: {round(end - start, 4)}")
+        return json.loads(result)
     except (ValueError, KeyError) as e:
         print("Warning! type_of_query failed. Defaulting to 0")
         return 0 # Return both just in case
@@ -221,39 +232,19 @@ async def response_report(query: Query)-> Report:
     stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
     stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()}, default=str)
     ltt_json = json.dumps({k: v.model_dump() for k, v in store.LONG_TERM_TRENDS.items()}, default=str)
+    hr_json = json.dumps([p['hr'].model_dump() for p in store.CATEGORICAL_CONGLOMERATE], default=str)
+    o2_json = json.dumps([p['o2'].model_dump() for p in store.CATEGORICAL_CONGLOMERATE], default=str)
+    temp_json = json.dumps([p['temp'].model_dump() for p in store.CATEGORICAL_CONGLOMERATE], default=str)
+    el_json = json.dumps([p['elevation'].model_dump() for p in store.CATEGORICAL_CONGLOMERATE], default=str)
     l = len(store.SHORT_TERM_POOL) - 1
     last_json = store.SHORT_TERM_POOL[l].model_dump()
 
+    # Now we put all the json files and match them to a number from query_type
+    collection = {0: stp_json, 1: stt_json, 2:ltt_json, 3: hr_json, 4:o2_json, 5:temp_json, 6:el_json, 7:last_json}
     data = []
-    if query_type == -2:
-        data.append(last_json)
-
-        context_data.append("LAST_DATA")
-    if query_type == -1:
-        data.append(stp_json)
-        data.append(stt_json)
-        data.append(last_json)
-
-        context_data.append("SHORT_TERM_POOL")
-        context_data.append("SHORT_TERM_TRENDS")
-        context_data.append("LAST_DATA")
-    elif query_type == 0:
-        data.append(stp_json)
-        data.append(stt_json)
-        data.append(ltt_json)
-        data.append(last_json)
-
-        context_data.append("SHORT_TERM_POOL")
-        context_data.append("SHORT_TERM_TRENDS")
-        context_data.append("LONG_TERM_TRENDS")
-        context_data.append("LAST_DATA")
-    elif query_type == 1:
-        data.append(ltt_json)
-
-        context_data.append("LONG_TERM_TRENDS")
-    elif query_type == 2:
-        data.append("No context needed")
-        context_data.append('No context needed')
+    
+    for i in query_type.items:
+        data.append(collection[i])
     
     response = await client.generate(
         model='llama3.2:3b',

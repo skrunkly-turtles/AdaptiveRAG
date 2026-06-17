@@ -1,43 +1,41 @@
-Time: 1781635802.9909515 
- Report: Concerning data point(s): o2: 93.36
-Summary: Oxygen saturation is lower than the recent average, suggesting potential distress or discomfort related to physical exertion or environmental factors. 
- Time taken: 22.7627 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635812.2171695 
- Report: Concerning data point(s): o2: 92.72
-Summary: Patient's oxygen levels are lower than their recent average, indicating a potential issue that requires medical attention. This could be a sign of hypoxia or other respiratory concerns. 
- Time taken: 23.9143 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635822.7903163 
- Report: Concerning data point(s): O2 stats are low, at 93.2 when recent average has been 93.32
-Summary: The subject's oxygen saturation levels are lower than their recent average, indicating potential concern for the subject's health. 
- Time taken: 38.5188 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635832.6683984 
- Report: Concerning data point(s): o2: 87.61
-Summary: The oxygen saturation level is critically low, indicating potential respiratory distress or decreased physical capacity. This reading is significantly lower than the recent average. 
- Time taken: 52.4471 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635843.4245183 
- Report: Concerning data point(s): o2: 98.99%
-Summary: Oxygen saturation level within normal range, indicating no immediate respiratory distress concerns.
 
-Concerning data point(s): elevation: 5.18
-Summary: Current elevation is slightly above the average value in the dataset, suggesting possible increased respiratory demands due to high altitude. 
- Time taken: 61.1685 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635853.6493316 
- Report: Concerning data point(s): o2: 93.36%
-Summary: Oxygen saturation is near normal levels, indicating that the person's respiratory system appears to be functioning properly and is not showing signs of distress at this moment. 
- Time taken: 73.4175 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635868.0195143 
- Report: Concerning data point(s): temperature: 234.47
-Summary: The temperature has reached an extreme level of 234.47, indicating potentially life-threatening conditions that require immediate attention.
+ Time: 2026-06-17T11:31:43.894089 
+ Report: Concerning data point(s): o2: 95.97%
+Summary: Oxygen saturation levels are slightly below normal range (typically above 96%), which may indicate a slight decrease in oxygenation or acclimatization to the current environment. 
+ Time taken: 16.4663 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.6581 
 
-Concerning data point(s): elevation: -6.53
-Summary: The elevation is at a critically low level, which could be indicative of acute altitude sickness or other serious health issues.
+ Time: 2026-06-17T11:32:17.646809 
+ Report: Concerning data point(s): temperature (41.04°C), elevation (-4.62m)
+Summary: Temperature and elevation are within normal ranges for the given time, but slightly high and low respectively. No immediate health concerns appear based on this data alone. 
+ Time taken: 34.1471 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.6192 
 
-Concerning data point(s): hr: 106
-Summary: The heart rate is elevated, suggesting the individual may be experiencing stress or strain due to high temperatures or other environmental factors.
+ Time: 2026-06-17T11:32:17.649920 
+ Report: Concerning data point(s): o2: 90.99
+Summary: The oxygen level of 90.99 is significantly below the recent average of 96.725, indicating a potential risk for hypoxia. This may require immediate medical attention. 
+ Time taken: 46.2018 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.7713 
 
-Note: No relevant data yet for "o2" and "temp" statistics as they are only provided in the format of min, max, avg, and total, without specific values. 
- Time taken: 81.7308 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
-Time: 1781635878.5529552 
- Report: Concerning data point(s): o2: 97.62%
-Summary: Oxygen levels are critically low, indicating potential respiratory distress or altitude sickness. This value falls below the normal average oxygen saturation range of approximately 95-100%. 
- Time taken: 87.9851 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: -1.0 
+ Time: 2026-06-17T11:32:47.524552 
+ Report: Concerning data point(s): 'o2': 95.96
+Summary: Oxygen saturation level is below normal range (typically above 96%), indicating potential respiratory distress or hypoxia in extreme heat conditions.
+
+Concerning data point(s): 'hr': 156, 'temp': 307.36
+Summary: Both heart rate and temperature are at critically high levels, suggesting severe heat-related illness with possible cardiovascular strain. 
+ Time taken: 11.7543 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.7032 
+
+ Time: 2026-06-17T11:32:57.898659 
+ Report: Concerning data point(s): temperature: 826.88
+Summary: The extremely high temperature is significantly above the average (69.79°C), suggesting severe heat stress or exposure risks. This reading is also above the maximum recorded value in the provided data, which was 826.88 itself. 
+ Time taken: 20.1181 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.6059 
+
+ Time: 2026-06-17T11:33:10.953349 
+ Report: Concerning data point(s): o2: 95.97
+Summary: Oxygen saturation is slightly below the normal range, indicating possible mild distress or concern, especially considering the elevated heart rate and temperature readings.
+
+ Concerning data point(s): elevation: 2.58m
+ Summary: The person's elevation is within a relatively safe range, suggesting they are in a low to moderate altitude environment. 
+ Time taken: 27.1424 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.676 
+
+ Time: 2026-06-17T11:33:23.310180 
+ Report: Concerning data points: 'temperature is extremely high' (1205.96°F), 'hr': 146, 'elevation': 22.6
+Summary: The temperature has reached an extreme level, indicating a significant increase in environmental heat. Heart rate and elevation are also within critical ranges, suggesting potential health concerns due to the environment. 
+ Time taken: 15.3564 | Data used: ['CRITICAL LOG', 'LAST_DATA', 'SHORT_TERM_TRENDS'] | Confidence: 0.6193 
