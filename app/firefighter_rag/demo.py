@@ -158,7 +158,7 @@ async def type_of_query(query: str) -> int:
     response= await client.generate(
         model='llama3.2:3b', # Switched everything to llama 3.2:3b because why not :)
         system=QUERY_TYPE_PROMPT,
-        prompt=query
+        prompt= query
     )
     r = response['response'].strip()
     end = time.time()
@@ -186,7 +186,7 @@ async def seen_critical(log: store.Critical) -> Report:
     # stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
     stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()}, default=str)
 
-    data = [log.description,  last_json, stt_json] # We can add stp_json to this too
+    data = [log.value,  last_json, stt_json] # We can add stp_json to this too
     context_data = ['CRITICAL LOG', "LAST_DATA", 'SHORT_TERM_TRENDS'] # We can add 'SHORT_TERM_POOL' to this too
 
     response = await client.generate(

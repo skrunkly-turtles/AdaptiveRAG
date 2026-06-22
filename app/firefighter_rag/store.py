@@ -9,6 +9,7 @@ from datetime import datetime
 import asyncio
 import generator
 import demo
+import demo_v2
 import csv
 import os
 
@@ -27,18 +28,18 @@ class Critical(BaseModel):
       metric: str
       value: float
       severity: str
-      description: str
 
 # Clears the CSV file once!
 try:
     with open(CRITICAL_CSV, mode='w', newline='', encoding='utf-8') as _file:
-        _writer= csv.DictWriter(_file, fieldnames=list(Critical.model_fields.keys()))
+        csv.DictWriter(_file, fieldnames=list(Critical.model_fields.keys()))
 except Exception as e:
     print("Uh oh, we couldn't clear the csv file :(")
 
 # This method just adds a new reading to the csv
 async def log_critical(reading: Critical, file_path: str=CRITICAL_CSV) -> None:
-      asyncio.create_task(demo.seen_critical(reading)) # Alerts the LLM that we have logged a new critical alert
+      # asyncio.create_task(demo.seen_critical(reading)) # Alerts the LLM that we have logged a new critical alert
+      asyncio.create_task(demo.seen_critical(reading))
       file_exists = os.path.exists(file_path)
 
       with open(file_path, mode='a', newline = '', encoding='utf-8') as file:
@@ -72,7 +73,7 @@ class Sensor(BaseModel):
     elevation: float
     temp: float
 
-
+# Returns for the size thingy in demo v2 :"D
 def get_context() -> list:
     """
     Return a list of the length of all data pools
@@ -97,35 +98,32 @@ async def process_incoming(data:dict) -> None:
     
     # Deterministic alerts!
     if packet.hr < 20 or packet.hr > 240:
-        recent = round(SHORT_TERM_TRENDS['hr'].avg, 4) if 'hr' in SHORT_TERM_TRENDS else ""
+        
         alarm = Critical(
             time=packet.time,
             metric='hr',
             value=packet.hr,
             severity='HIGH',
-            description= f"Heart rate is abnormal, at {packet.hr} bpm when recent average has been {recent}"
         )
         await log_critical(alarm)
     
     if packet.o2 < 95 and packet.o2 > 90:
-        recent = round(SHORT_TERM_TRENDS['o2'].avg, 4) if 'o2' in SHORT_TERM_TRENDS else ""
+        
         alarm = Critical(
             time = packet.time,
             metric = 'o2',
             value = packet.o2,
             severity='MEDIUM',
-            description=f"O2 stats are low, at {packet.o2} when recent average has been {recent}"
         )
         await log_critical(alarm)
 
     if packet.o2 < 90:
-        recent = round(SHORT_TERM_TRENDS['o2'].avg, 4) if 'o2' in SHORT_TERM_TRENDS else ""
+        
         alarm = Critical(
             time = packet.time,
             metric = 'o2',
             value = packet.o2,
             severity='HIGH',
-            description=f"O2 stats are dangerously low, at {packet.o2} when recent average has been {recent}"
         )
         await log_critical(alarm)
     
@@ -135,7 +133,6 @@ async def process_incoming(data:dict) -> None:
             metric = 'temp',
             value = packet.temp,
             severity = 'MEDIUM',
-            description=f"Temperature is a little high, at {packet.temp}"
         )
         await log_critical(alarm)
     
@@ -145,7 +142,6 @@ async def process_incoming(data:dict) -> None:
             metric = 'temp',
             value = packet.temp,
             severity = 'HIGH',
-            description=f"temperature is extremely high, at {packet.temp}"
         )
         await log_critical(alarm)
 

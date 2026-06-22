@@ -35,6 +35,9 @@ MAIN_PROMPT = ("""You are a highly cost-effective agent for emergency services. 
 # The new QUERY_TYPE_PROMPT
 def build_query_type_prompt() -> str:
     context = store.get_context()
+    for l in context: # DOuble check haha
+        print(l)
+
     return f"""You are a precise router. Select ONLY the integers which correspond to data needed to answer the query. Prioritize options with 
                         lowest sizes while still maintaining high confidence. 
 
@@ -187,8 +190,8 @@ async def type_of_query(query: str) -> list:
         result = json.loads(r)
         if any(i not in valid for i in result):
             raise ValueError(f"Unexpected value! {result}")
-        print(f"Data needed:{result.items} | Time taken: {round(end - start, 4)}")
-        return json.loads(result)
+        print(f"Data needed:{result} | Time taken: {round(end - start, 4)}")
+        return result
     except (ValueError, KeyError) as e:
         print("Warning! type_of_query failed. Defaulting to 0")
         return [1] 
