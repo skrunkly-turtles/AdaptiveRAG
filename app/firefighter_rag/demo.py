@@ -31,22 +31,26 @@ QUERY_TYPE_PROMPT = ("""You are a precise router. Your only job is to categorize
                      integer. You will output exactly one integer from this list: [-2, -1, 0, 1, 2]. Do NOT include
                      any other letters, numbers, formatting, or characters. 
 
-                     Here is what each number means:
-                     -2: Choose this if the query ONLY requires data last generated. It will use the words "last" or "right now" or "currently"
-                     -1: Choose this if the query requires averages from the past minute. It will use words such as "recent" and "short-term"
-                     1: Choose this if the query uses words such as: "average", "all-time", and focuses on the overall
-                        history, maximums, minimums, trends, or past behaviour. 
-                     0: Choose this if the query references or compares short term behaviour or the present moment,
-                      with overall history and the past. 
-                     2: Choose this if the query is a meta-question, a greeting, a conversation, or is otherwise unrelated
-                        to concrete sensor data. 
-                     
+                     STEP 1 — Is it a comparison question? (contains "compare", "vs", "versus", "relative to", "compared to")
+                            - Comparing current/recent vs all-time/history/minimum/maximum → 0
+                            - Comparing current vs recent/short-term only → -1
+
+                    STEP 2 — If not a comparison, which time scope does it focus on?
+                            -2 → Asks ONLY about right now / the last reading / the current moment.
+                                Includes questions about the current clock time ("what time is it").
+                                Key words: "right now", "currently", "current", "latest", "last reading", "current time", "what time".
+                            -1 → Asks about the recent past (past minute). Key words: "recently", "short-term".
+                            1 → Asks about all-time stats, history, or overall trends.
+                                Key words: "average", "all-time", "overall", "minimum", "maximum", "range", "so far", "trend".
+                            2 → Greeting, joke, opinion, or completely unrelated to sensor/vital data.
+                    
                      Examples:
                      Query: "What is his heart rate right now?" -> -2 
                      Query: "What is their recent elevation average?" -> -1
                      Query: "What is her average O2 stat?" -> 1
                      Query: "How is her current elevation compared to her average elevation?" -> 0
                      Query: "What is the colour of the sky?" -> 2
+                     Query: "Tell me a joke" -> 2
     """)
 
 CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_TRENDS, give a concise report in this format:
@@ -221,8 +225,11 @@ async def response_report(query: Query)-> Report:
     stp_json = json.dumps([p.model_dump() for p in store.SHORT_TERM_POOL], default=str)
     stt_json = json.dumps({k: v.model_dump() for k, v in store.SHORT_TERM_TRENDS.items()}, default=str)
     ltt_json = json.dumps({k: v.model_dump() for k, v in store.LONG_TERM_TRENDS.items()}, default=str)
-    l = len(store.SHORT_TERM_POOL) - 1
-    last_json = store.SHORT_TERM_POOL[l].model_dump()
+    if not store.SHORT_TERM_POOL:
+        last_json = {}
+    else:
+        l = len(store.SHORT_TERM_POOL) - 1
+        last_json = store.SHORT_TERM_POOL[l].model_dump()
 
     data = []
     if query_type == -2:

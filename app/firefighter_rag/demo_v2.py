@@ -2,6 +2,7 @@
 VERSION TWO OF DEMO.PY (TO BE TESTED). 
 Edits: This version has a more flexible retrieval method, allowing the LLM to dynamically decide with both
 (1) More types of data pools, and (2) How many of the data pools it wishes to retrieve from.
+Ok i tested it, it is a little bit stupid.
 
 
 This is where the LLM lives, and the "brain" of the operation exists. It must do the following:
@@ -35,27 +36,43 @@ MAIN_PROMPT = ("""You are a highly cost-effective agent for emergency services. 
 # The new QUERY_TYPE_PROMPT
 def build_query_type_prompt() -> str:
     context = store.get_context()
-    for l in context: # DOuble check haha
-        print(l)
 
-    return f"""You are a precise router. Select ONLY the integers which correspond to data needed to answer the query. Prioritize options with 
-                        lowest sizes while still maintaining high confidence. 
+    return f"""You are a data retrieval router for a firefighter vital-signs system.
+Your job: given a query, return the minimal list of integer keys needed to answer it accurately.
 
-                     Here is what each number which can be added to QueryType items means:
-                     0: (All the data from all categories from the past 60 seconds) | Size: {context[0]}
-                     1: (min, max, avg, num items summaries for EACH category ONLY from the past 60 seconds) | Size: {context[1]}
-                     2: (min, max, avg, total items summaries for EACH category from ALL TIME) | Size: {context[2]}
-                     3: (CATEGORICAL_CONGLOMERATE['hr'], a list of ALL data from Heart Rate) | Size: {context[3]}
-                     4: (CATEGORICAL_CONGLOMERATE['o2'], a list of ALL data from Oxygen) | Size: {context[4]}
-                     5: (CATEGORICAL_CONGLOMERATE['temp'], a list of ALL data from Temperature) | Size: {context[5]}
-                     6: (CATEGORICAL_CONGLOMERATE['elevation'], a list of ALL data from Elevation) | Size: {context[6]}
-                     7: (A dictionary of ONLY the most recent data.) | Size: {context[7]}
-                     
-                     Examples:
-                     Query: "What is his heart rate right now?" -> [7]
-                     Query: "What is their recent elevation average compared to their elevation average of all time?" -> [1, 2]
-                     Query: "What is her average O2 stat?" -> [2]
-                     """
+OUTPUT FORMAT: Return ONLY a JSON array of integers, e.g. [7] or [1, 2]. No explanation, no other text.
+
+AVAILABLE DATA SOURCES (choose only what is needed):
+  7 → Most recent single reading (all vitals, one moment)         | cost: {context[7]}
+  0 → Full short-term pool: every raw reading, last 60 seconds    | cost: {context[0]}
+  1 → Short-term summary: min/max/avg per category, last 60s      | cost: {context[1]}
+  2 → Long-term summary: min/max/avg per category, all-time       | cost: {context[2]}
+  3 → Full heart rate history (every reading, all time)           | cost: {context[3]}
+  4 → Full oxygen history (every reading, all time)               | cost: {context[4]}
+  5 → Full temperature history (every reading, all time)          | cost: {context[5]}
+  6 → Full elevation history (every reading, all time)            | cost: {context[6]}
+
+SELECTION RULES (apply in order):
+  1. If the query is a greeting, joke, or completely unrelated to vital signs → return []
+  2. If the query asks about a single current value or the current moment → include 7
+  3. If the query asks about recent trends, averages, or the past minute → include 1
+  4. If the query compares current/recent against all-time stats → include 1 and 2
+  5. If the query asks about all-time stats only → include 2
+  6. Only include 0, 3, 4, 5, or 6 if the query explicitly needs raw data points or a full history list
+  7. When two options cover the need, always prefer the lower-cost one
+
+EXAMPLES:
+"What is his heart rate right now?"                                → [7]
+"What is the current time?"                                        → [7]
+"Are they in critical condition right now?"                        → [7]
+"What is their recent elevation average?"                          → [1]
+"How does current elevation compare to elevation recently?"        → [7, 1]
+"How does current temperature compare to the all-time minimum?"   → [7, 2]
+"What is her average O2 stat all time?"                           → [2]
+"What is the range of temperature so far?"                        → [2]
+"Plot every heart rate reading we have ever recorded"             → [3]
+"Tell me a joke"                                                   → []
+"""
 
 CRITICAL_LOG_QUESTION = ("""Given the extended context and data from SHORT_TERM_TRENDS, give a concise report in this format:
                          Concerning data point(s): the direct statistic that is critical
