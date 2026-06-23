@@ -148,7 +148,7 @@ import demo_v2
 
 async def test_routing_query(query_text, expected_sources):
     actual_sources = await demo_v2.type_of_query(query_text)
-    assert sorted(actual_sources) in sorted(expected_sources), (
+    assert sorted(expected_sources) in sorted(actual_sources), (
         f"\nQuery:    {query_text}"
         f"\nExpected: {expected_sources}"
         f"\nGot:      {actual_sources}"

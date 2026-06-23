@@ -6,7 +6,7 @@ This Python file is generating the fake CSV files right now. It randomly generat
 (4) Temperature 
 In the form of a dictionary
 
-This information will be sent to store.py and demo.py
+This information will be sent to pool_maker.py and demo.py
 """
 import os
 import random

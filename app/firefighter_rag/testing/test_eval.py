@@ -8,7 +8,6 @@ import demo, store
 EVAL_LOG = os.path.join(os.path.dirname(__file__), "eval_log.jsonl")
 
 
-
 def log_result(query_str, expected, response: demo.Report, grade, notes="")-> None:
     """
     Append the recent log into the JSONL file for tracing

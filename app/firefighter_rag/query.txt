@@ -1,0 +1,3 @@
+What is the average heart rate?
+Are there any concerningly low O2 levels in the last minute?
+How high has the firefighter gone?
