@@ -29,3 +29,40 @@ class Query(BaseModel):
     urgency: float 
     time: Time
 
+class Data(BaseModel):
+    """
+    All the data that is sent from the generator!
+    """
+    time: datetime
+    hr: int
+    o2: float
+    elevation: float
+    temp: float
+
+class Hr(BaseModel):
+    """
+    The Heart Rate data packet
+    """
+    time: datetime
+    hr: int
+
+class O2(BaseModel):
+    """
+    The O2 data packet
+    """
+    time: datetime
+    o2: float
+
+class Elevation(BaseModel):
+    """
+    The Elevation data packet
+    """
+    time: datetime
+    elevation: float
+
+class Temp(BaseModel):
+    """
+    The temperature data packet
+    """
+    time: datetime
+    temp: float
