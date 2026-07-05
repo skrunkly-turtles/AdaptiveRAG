@@ -66,3 +66,13 @@ class Temp(BaseModel):
     """
     time: datetime
     temp: float
+
+class Summaries(BaseModel):
+    """
+    The summaries packet
+    """
+    time: datetime
+    hr: list
+    o2: list
+    el: list
+    temp: list
