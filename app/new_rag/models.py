@@ -2,9 +2,10 @@
 This is where all the pydantic models live!
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Any
+from captain import WINDOW, FIREFIGHTER_NAMES
 
 
 # Debating on whether to use this class or not. It uses more tokens than I might need
@@ -15,11 +16,6 @@ class Answer(BaseModel):
     time: datetime
     answer: str # The answer yay
     confidence: float
-
-class ReportList(BaseModel):
-    """
-    The 
-    """
 
 
 class Report(BaseModel):
@@ -82,9 +78,32 @@ class CapDecision(BaseModel):
     The decision schema used by the captain containing all its decisions 
     """
     time: datetime
-    firefighters: list # The list of firefighters needed
-    data: list[Report] # A list of length firefighters, with each item is the Report corresponding to that ff.
+    window: str
+    firefighters: list[int] # The list of firefighters needed, where the integer is their ID as per in captain.py
     urgency: float
+
+    # The following validate everything :D
+    
+    @field_validator('firefighters')
+    @classmethod
+    def check_exists(cls, v: list[int]) -> list[int]:
+        for f in v:
+            if f not in FIREFIGHTER_NAMES:
+                raise ValueError(f"This firefighter doesn't exist: {f}")
+        return v
+    
+    @field_validator('urgency')
+    @classmethod
+    def check_range(cls, v:float) -> float:
+        if v > 1 or v < 0:
+            raise ValueError(f"the urgency value is invalid: {v}")
+        return v
+    
+    @field_validator('window')
+    @classmethod
+    def check_window(cls, v:str) -> str:
+        if v not in WINDOW:
+            raise ValueError(f"The window type is invalid: {v}")
 
 class CapMemory(BaseModel):
     """
