@@ -5,6 +5,7 @@ langchain-community
 langchain-ollama
 langchain-text-splitters
 
+aiosqlite
 faiss-cpu
 python-dotenv 
 pydantic # This download ensures that the input data is of the correct form
