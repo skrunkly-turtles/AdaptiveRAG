@@ -4,12 +4,16 @@ This file represents the firefighter. It is responsible for:
 (2) Validating the time token, and generating the other information for a Report
 """
 import math
+import json
 import asyncio
 from models import Query, Report
+from get_data import get_data
 from pydantic import RootModel, Field
 import ollama
-from typing import Any
+from typing import Any, Annotated
 
+# Firefighter ID :D
+FF_ID = 1
 # Window weights for the mathematical formula we used! We can tweak this as needed. 
 WINDOW_WEIGHTS = {'point': 1, 'short': 5, 'long': 30}
 
@@ -18,10 +22,8 @@ WINDOW_WEIGHTS = {'point': 1, 'short': 5, 'long': 30}
 MAX_CHUNKS = 300
 
 # Chunk possibilities for the agent to choose from
-class Relevance(RootModel[dict[str, Field(ge=0.0, le=1.0)]]):
-    """
-    The pydantic model for the AI to follow. That's all.
-    """
+class Relevance(RootModel[dict[str, Annotated[float, Field(ge=0.0, le=1.0)]]]):
+    """The valid pydantic model schema for Ollama structuring."""
     pass
 
 CHUNKS = [3, 10, 20, 40, 60, 100]
@@ -33,13 +35,16 @@ POOLS = ["ALL_LOG", "ELEVATION", "HR", "O2", "TEMP", "SUMMARIES"]
 client = ollama.AsyncClient()
 
 #TODO: make system prompt
-POOL_PROMPT = (f""" You are a precise agent. 
+POOL_PROMPT = (f""" You are a routing agent. 
               Given the query and the notes in the prompt, ONLY return a dictionary of 
               which data pools in {POOLS} are helpful to answer the question, mapped to a float in the list: [0.3, 0.5, 0.7, 1]
               where 0.3 indicates peripheral usefulness, and 1 indicates vital to the query. 
               Follow the json schema EXACTLY and return nothing else.       
 """)
 
+SYS_PROMPT = (f""" You are a precise agent. Given the data the key words to pay attention to, answer the 
+        query and give a short and comprehensive summary of the data provided. 
+""")
 # Determine the chunk size, and the resolution through a deterministic formula. This can be up for debate.
 # Note that output size will be: chunks x num_data, with it spanning (chunks x res x 2 seconds ) time
 async def determine_chunks(q: Query, num_data: int) -> tuple[int, int]:
@@ -69,6 +74,8 @@ async def determine_chunks(q: Query, num_data: int) -> tuple[int, int]:
 
         return (c, r)
 
+# Determines which pools should have information retrieved from it with an AI agent AND deterministic 
+# equations regarding urgency.
 async def det_pools(q: Query) -> list:
     """
     Return a list of relevant pools to make the Report depending on (1) the Query, and then (2) the Urgency
@@ -76,9 +83,9 @@ async def det_pools(q: Query) -> list:
     # (1) We find the relevant pools and create a dictionary of their name mapped to a float between 0 and 1 
     # regarding how relevant they are
     response = await client.generate(
-        model='llama3.2:3b',
+        model='qwen3:14b',
         system=POOL_PROMPT,
-        prompt= q,
+        prompt= q.query,
         logprobs= True,
         format=Relevance.model_json_schema()
     )
@@ -93,14 +100,22 @@ async def det_pools(q: Query) -> list:
         score = 0
     
     l = []
-    m = (0, 0)
+    m = ("SUMMARIES", 0.0)
+    
+    # Load into a JSON file:
+    try:
+        r = json.loads(r)
+    except (json.JSONDecodeError, TypeError):
+        print("Warning: Failed to parse LLM response into JSON. Using fallback pool.")
+        return ["SUMMARIES"]
+    
     for p in r:
         # Quick validity check. Don't add pools that don't exist:
         if p not in POOLS:
-            print(f"The type of pool does NOT exist")
+            print(f"The type of pool does NOT exist: {p}")
         else:
             if r[p] > m[1]:
-                m = (r, r[p])
+                m = (p, r[p])
             if r[p] > score:
                 l.append(p)
     
@@ -109,18 +124,17 @@ async def det_pools(q: Query) -> list:
     else:
         return l            
 
-
 # This is the Report that is sent to the pools 
 async def make_report(q: Query) -> Report:
     """
     Return a Report to be sent to get_data
     """
     # First we determine pools:
-    pools = det_pools(q)
+    pools = await det_pools(q)
     num_data = len(pools)
 
     # Then we send the pools to get chunks!
-    size = determine_chunks(q, num_data)
+    size = await determine_chunks(q, num_data)
 
     # Then we make the Report:
     report = Report(
@@ -145,4 +159,22 @@ async def read_pools(r: Report, q: Query) -> tuple[int, dict[str, list[Any]]]:
       "OXYGEN_POOL": [ ... ]
     })
     """
-    raise NotImplementedError
+    d = await get_data(r, FF_ID)
+    response = await client.generate(
+        model='llama3.2:3b',
+        system=SYS_PROMPT,
+        prompt= f"Question and Notes: {q.query} \n Data: {d}",
+        logprobs= True,
+    )
+    d["QUERY SUMMARY"] = [response['response']]
+
+    return (FF_ID, d)
+
+async def main(q: Query) -> tuple[int, dict[str, list[Any]]]:
+    """
+    Return the final list of stuff
+    """
+    report = await make_report(q)
+    answer = await read_pools(report, q)
+    
+    return answer

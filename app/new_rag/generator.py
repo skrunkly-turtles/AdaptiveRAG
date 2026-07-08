@@ -6,40 +6,12 @@ This Python file is generating the fake CSV files right now. It randomly generat
 (4) Temperature 
 In the form of a dictionary
 
-This information will be sent to pool_maker.py and demo.py
+This information will be sent to pool_maker.py
 """
-import os
 import random
-import csv
-import time
 import pool_maker
 import asyncio
 from datetime import datetime
-
-LOGS = "logs.csv" # A temporary csv just to log all the logs :DD
-
-# Clears the log csv
-try:
-    with open(LOGS, mode='w', newline='', encoding='utf-8') as _file:
-        _writer= csv.DictWriter(_file, fieldnames=list(pool_maker.Sensor.model_fields.keys()))
-except Exception as e:
-    print("Uh oh, we couldn't clear the csv file :(")
-
-# Just a temporary function
-def record_runs(reading: pool_maker.Sensor, file_path: str=LOGS) -> None:
-    """
-    A temporary function to log all the generated data in a log.
-    """
-    file_exists = os.path.exists(file_path)
-    
-    with open(file_path, mode='a', newline = '', encoding='utf-8') as file:
-        fieldnames = list(reading.model_fields.keys())
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        if not file_exists:
-            writer.writeheader()
-        row_data = reading.model_dump(mode='json')
-        writer.writerow(row_data)
-
 
 def weighted_list(ranges, dec):
     """
@@ -96,9 +68,15 @@ def data() -> dict:
     }
 
 async def start_stream():
+    await pool_maker.clear_db()
     while True:
-        new_packet = data()
+        p1 = data()
+        p2 = data()
+        p3 = data()
         # print(new_packet)
-        await pool_maker.process_incoming(new_packet)
+        await pool_maker.process_incoming(p1, 1)
+        await pool_maker.process_incoming(p2, 2)
+        await pool_maker.process_incoming(p3, 3)
+    
         await asyncio.sleep(2)
 

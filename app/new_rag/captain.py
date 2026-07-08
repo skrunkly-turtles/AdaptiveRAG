@@ -6,53 +6,99 @@ This file represents the Captain, which oversees all the firefighters. It is res
 """
 
 import asyncio
-from models import Time, Query, CapDecision, CapMemory, Answer
+from models import Query, CapDecision, WINDOW
 import generator
 import ollama
-import random
+from firefighters import ff1, ff2, ff3
+from datetime import datetime
+from typing import Any
+from memory_manager import summarize, memory, LATEST_DATA
+
+FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3}
 
 client = ollama.AsyncClient()
-memory = CapMemory(
-    firefighter_summary={
-        "ff1": "Status: None",
-        "ff2": "Status: None"
-    }
-)
 
-# The maximum number of raw messages to keep in the context prompt
-MAX_TURNS = 6
+# The max number of tokens that can be used in the summary!
+MAX_SUMMARY = 2000
 
-# This is the system prompt
-SYS_PROMPT = (""" You are a concise agent. 
+
+SYS_PROMPT = (f""" You are a precise agent. 
+""")
+
+# This is the routing prompt to route the agents
+
+ROUTE_PROMPT = (f""" You are a concise agent. Given the query from the user, the firefighters summary, and the data summary,
+              return a response ONLY and EXACTLY as the json format {CapDecision} is. 
               
+              CRITICAL RULES: 
+              (1) Use the query, the data summar, and firefighters summary provided in the prompt.
+              (2) Return ONLY the json schema outlined.
+              (3) The list of words each ID is mapped to in firefighters MUST BE verbs or nous found in the query. 
+                    If all words are important to the firefighter, map their ID to an empty list.
+              (4) If you are extremely unsure, return exactly this fallback JSON:
+                {{
+                    "time": "{datetime.now()}",
+                    "window": "long",
+                    "firefighters": {{1: [], 2:[], 3:[]}},
+                    "urgency": 0.5
+                }}
+
+              Here is what each attribute means:
+              
+              time: ISO 8601 string (YYYY-MM-DD HH:MM:SS). If no time is mentioned, provide the best logical guess based on the current system time.
+              window: A string in {WINDOW} where 'point' is ONLY the data at <time>, 'short' is a SHORT window
+                     of time around <time>, and 'long' requires a longer context window.
+             firefighters: A dictionary of integers corresponding to firefighter IDs in {FIREFIGHTER_NAMES}, mapped to a list of key
+                            words IN THE QUERY which are IMPORTANT for that SPECIFIC firefighter. If the entire sentence
+                            is relevant, map the firefighter ID to an empty list.
+             urgency: A float between 0 and 1 where 0 is NOT CRITICAL at all, and 1 necessitates immediate action.
+              
+             Example:
+                    {{
+                    "time": "2026-07-08T16:41:28.354+00:00",
+                    "window": "point",
+                    "firefighters": {{1: ["heart", "current"], 2:[], 3:[]}},
+                    "urgency": 0.5
+                }}
               """)
 
-SUMMARY_PROMPT = ("""sum
-                  
-                  """)
 
-# Compress the conversation_history and updates the summary accordingly
-async def compress_window(self) -> None:
+# (1) Parse the Query and send it to the correct firefighters
+async def route_ff(q:str) -> CapDecision:
     """
-    Update data_summary from CapMemory when more than MAX_TURNS of conversation exists. Takes the oldest
-    turns and merges them with the existing data_summary and updates data_summary, then updates data_cache to 
-    the most recent MAX_TURNS of conversation.
+    Return a CapDecision outlining the firefighters which need to be deployed, and a quick note for them.
     """
-    # Logging what is happening
-    print("Compressing turns!")
-    try: 
-        response = await client.generate(
-        model='llama3.2:3b',
-        system= SUMMARY_PROMPT,
+    response = await client.generate(
+        model='qwen3:14b',
+        system=ROUTE_PROMPT,
         prompt= f"""
-            Context: {data} \n
-            Question: {query.query}
+            Query: {q},
+            Context: {memory.data_summary},
+            Firefighters' Summary: {memory.firefighter_summary}
         """,
-        logprobs= True
+        logprobs= True,
+        format=CapDecision.model_json_schema()
     )
-    except Exception as e:
-        print("Compression failed uh oh :(")
-    raise NotImplementedError
+    print(response['response'])
+    r = CapDecision.model_validate_json(response['response'])
+    return r
+    
+# Responsible for sending the data from the firefighters to the answer LLM
+async def send_stuff(d: CapDecision, q: str) -> list[tuple[int, dict[str, list[Any]]]]:
+    """
+    Return the summarized data from firefighters and sends information to the firefighters
+    """
+    data = []
+    for f in d.firefighters:
+        qu = Query(
+            query= f"{q} \n Special Notes: {' '.join(d.firefighters[f])}",
+            window=d.window,
+            urgency=d.urgency,
+            time=d.time
+        )
+        data.append(FIREFIGHTER_NAMES[int(f)].main(qu))
+        
+    return await asyncio.gather(*data)
 
 # Answers the query given all the data
 async def answer(q: str) -> str:
@@ -60,38 +106,53 @@ async def answer(q: str) -> str:
     Return the answer yay!
     """
     print("Pouring water down the drain...")
-    await client.generate(
+    relevant_ffs = await route_ff(q)
+    LATEST_DATA[:] = await send_stuff(relevant_ffs, q)
+
+    # INSERT THE MEMORY TOO
+    response = await client.generate(
         model='llama3.2:3b',
         system=SYS_PROMPT,
         prompt= f"""
-            Context: {data} \n
-            Question: {query.query}
+            Query: {q} \n
+            Data: {LATEST_DATA} \n
         """,
         logprobs= True
     )
-    raise NotImplementedError
+    return response['response']
+
 
 async def response_report(q: str) -> str:
     """
-    Just runs answer() and compress_window() together
+    Just runs answer() and summarizes the CapMemory together
     """
-    await asyncio.gather(
-        answer(q),
-        compress_window()
-    )
+    await summarize()
+    result = await answer(q)
+
+    return result
 
 # This makes a loop to retrieve and run a response
 async def run_response():
     while True:
-        r = await response_report(input("Ask a question: \n"))
+        # Offload the typing question so that data does not stop generating:
+        q = await asyncio.to_thread(input, "Ask a question: \n")
+        # Check for empty:
+        if not q.strip():
+            continue
+
+        # Check if they wanna stop:
+        if q.lower() in ("exit", "quit"):
+            print("Okay, bye!")
+            break
+
+        r = await response_report(q)
         print(f"I have my answer! \n {r} \n")
-        
         await asyncio.sleep(5) # Wait every five seconds
 
 # Wraps the two asyncio 
 async def main():
     await asyncio.gather(
-        generator.record_runs(), # This makes the generator make data every two seconds.
+        generator.start_stream(), # This makes the generator make data every two seconds.
         run_response(),
     )
 

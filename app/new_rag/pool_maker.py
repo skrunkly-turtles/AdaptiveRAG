@@ -2,8 +2,8 @@
 This Python file sorts the data logged in generator.py into pools as defined in the data folder.
 It is all deterministic:
 (1) A large raw data pool
-(2) Pools specified for each category
-(3) A large file of summaries/trends/statistics.
+(2) Pools specified for each category AND for each firefighter
+(3) A large file of summaries/trends/statistics for each firefighter
 """
 
 import asyncio
@@ -12,7 +12,38 @@ import os
 from datetime import datetime
 from models import Data
 
-DB_PATH = 'vitals.db'
+DB1_PATH = 'data/vitals.db'
+DB2_PATH = 'data/vitals2.db'
+DB3_PATH = 'data/vitals3.db'
+
+FF_DB = {1: DB1_PATH, 2: DB2_PATH, 3: DB3_PATH}
+
+# Clears the db
+async def clear_db() -> None:
+    """
+    Clears the vitals.db ONCE
+    """
+    if os.path.exists(DB1_PATH):
+        try:
+            os.remove(DB1_PATH)
+            print(f"Cleared existing database: {DB1_PATH}")
+        except PermissionError:
+            print("Could not delete DB1 file. Is another process or viewer open?")
+    
+    if os.path.exists(DB2_PATH):
+        try:
+            os.remove(DB2_PATH)
+            print(f"🗑️ Cleared existing database: {DB2_PATH}")
+        except PermissionError:
+            print("Could not delete DB2 file. Is another process or viewer open?")
+    
+    if os.path.exists(DB3_PATH):
+        try:
+            os.remove(DB3_PATH)
+            print(f"🗑️ Cleared existing database: {DB3_PATH}")
+        except PermissionError:
+            print("Could not delete DB3 file. Is another process or viewer open?")
+
 
 async def _init_db(db: aiosqlite.Connection) -> None:
     """Creates the unified tables and adds critical lookup indexes."""
@@ -28,8 +59,7 @@ async def _init_db(db: aiosqlite.Connection) -> None:
             temp      REAL
         )
     """)
-    
-    # CRITICAL INDEX: Ensures your get_data function runs instantly!
+
     await db.execute("CREATE INDEX IF NOT EXISTS idx_logs_time ON all_logs(time);")
     
     await db.execute("""
@@ -44,15 +74,6 @@ async def _init_db(db: aiosqlite.Connection) -> None:
     """)
     await db.commit()
 
-async def clear_db() -> None:
-    """Clears the database safely on startup."""
-    os.makedirs('data', exist_ok=True)
-    async with aiosqlite.connect(DB_PATH) as db:
-        await _init_db(db)
-        await db.execute("DELETE FROM all_logs")
-        await db.execute("DELETE FROM summaries")
-        await db.commit()
-        print("Database initialized and cleared.")
 
 async def log_reading(db: aiosqlite.Connection, reading: Data) -> None:
     """Inserts the unified row into the database using an active connection."""
@@ -104,7 +125,7 @@ async def calc_summaries(db: aiosqlite.Connection) -> None:
                 med = excluded.med
         """, (metric, num, round(avg, 2), round(mn, 2), round(mx, 2), round(med, 2)))
 
-async def process_incoming(data: dict) -> None:
+async def process_incoming(data: dict, ff: int) -> None:
     """
     Process incoming data packets smoothly every 2 seconds.
     Uses a single connection to completely avoid write lock errors.
@@ -112,7 +133,9 @@ async def process_incoming(data: dict) -> None:
     new_reading = Data(**data)
     
     # Open ONE connection for the entire request cycle
-    async with aiosqlite.connect(DB_PATH) as db:
+    path = FF_DB[ff]
+    async with aiosqlite.connect(path) as db:
+        await _init_db(db)
         await db.execute("PRAGMA journal_mode=WAL")
         
         # Log the data point and update summaries sequentially in the same transaction

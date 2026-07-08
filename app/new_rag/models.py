@@ -2,10 +2,15 @@
 This is where all the pydantic models live!
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, RootModel
 from datetime import datetime
-from typing import Any
-from captain import WINDOW, FIREFIGHTER_NAMES
+from typing import Any, Dict
+
+# A dict of the firefighters ID and their names, for validation
+FIREFIGHTER_NAMES = [1, 2, 3]
+
+# A list of the valid entries for CapDecision.window
+WINDOW = ['point', 'short', 'long']
 
 
 # Debating on whether to use this class or not. It uses more tokens than I might need
@@ -32,6 +37,7 @@ class Query(BaseModel):
     The query that is sent from the Captain to the Firefighter
     """
     query: str
+    window: str
     urgency: float 
     time: datetime
 
@@ -79,16 +85,16 @@ class CapDecision(BaseModel):
     """
     time: datetime
     window: str
-    firefighters: list[int] # The list of firefighters needed, where the integer is their ID as per in captain.py
+    firefighters: dict[str, list[str]] # A dictionary of firefighter IDs mapped to a list of key words they should attend to.
     urgency: float
 
     # The following validate everything :D
-    
+
     @field_validator('firefighters')
     @classmethod
-    def check_exists(cls, v: list[int]) -> list[int]:
+    def check_exists(cls, v: dict[int, list[str]]) -> dict[int, list[str]]:
         for f in v:
-            if f not in FIREFIGHTER_NAMES:
+            if int(f) not in FIREFIGHTER_NAMES:
                 raise ValueError(f"This firefighter doesn't exist: {f}")
         return v
     
@@ -104,15 +110,31 @@ class CapDecision(BaseModel):
     def check_window(cls, v:str) -> str:
         if v not in WINDOW:
             raise ValueError(f"The window type is invalid: {v}")
+        return v
 
 class CapMemory(BaseModel):
     """
     The context window containg the information that is continually updated by the incoming data, which can be
     accessed by the Captain to respond to user queries, and send Querys to the Firefighters
     """
-    last_updated: datetime
+    last_updated: datetime = Field(default_factory=datetime.now)
     conversation: list[dict[str, str]] = [] # The memory of the most recent conversation so far with MAX_TURNS
     data_summary: str = "No prior history yet. See cache." # The summary of what has happened so far!
-    data_cache: dict[str, list[Any]] = {} # Data summary!
-    firefighter_summary: dict[str, str] = {} # A light summary of what each firefighter is doing/looking like :D
+    firefighter_summary: dict[int, str] = {} # A light summary of what each firefighter is doing/looking like :D
 
+class FF_MEMORY(RootModel[Dict[str, str]]):   
+    @field_validator('root', mode='after')
+    @classmethod
+    def validate_keys_are_allowed_ints(cls, v: Dict[str, str]) -> Dict[str, str]:
+        for key in v.keys():
+            try:
+                int_key = int(key)
+            except ValueError:
+                raise ValueError(f"Key '{key}' must be a valid integer string.")
+            if int_key not in FIREFIGHTER_NAMES:
+                raise ValueError(f"Key {int_key} is not allowed. Must be one of {FIREFIGHTER_NAMES}")
+        return v
+    # Helper property to get the true {int: str} dictionary in Python
+    @property
+    def as_int_dict(self) -> Dict[int, str]:
+        return {int(k): v for k, v in self.root.items()}
