@@ -146,6 +146,11 @@ async def run_response():
             break
 
         r = await response_report(q)
+
+        # Append to memory.conversation! 
+        qr = {q: r}
+        memory.conversation.append(qr)
+
         print(f"I have my answer! \n {r} \n")
         await asyncio.sleep(5) # Wait every five seconds
 

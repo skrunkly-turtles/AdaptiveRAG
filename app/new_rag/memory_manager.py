@@ -101,7 +101,7 @@ async def update_ff_summaries() -> None:
         model='llama3.2:3b',
         system= FIREFIGHTER_PROMPT,
         prompt= f"""
-            new_conversation: {memory.conversation[:-MAX_TURNS]}\n 
+            new_conversation: {memory.conversation[-MAX_TURNS:]}\n 
             Existing ff summaries: {memory.firefighter_summary} \n
             New ff summaries: {ff_summaries}
         """,
