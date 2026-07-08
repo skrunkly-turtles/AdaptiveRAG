@@ -48,16 +48,16 @@ ROUTE_PROMPT = (f""" You are a concise agent. Given the query from the user, the
               time: ISO 8601 string (YYYY-MM-DD HH:MM:SS). If no time is mentioned, provide the best logical guess based on the current system time.
               window: A string in {WINDOW} where 'point' is ONLY the data at <time>, 'short' is a SHORT window
                      of time around <time>, and 'long' requires a longer context window.
-             firefighters: A dictionary of integers corresponding to firefighter IDs in {FIREFIGHTER_NAMES}, mapped to a list of key
-                            words IN THE QUERY which are IMPORTANT for that SPECIFIC firefighter. If the entire sentence
-                            is relevant, map the firefighter ID to an empty list.
+             firefighters: A list of integers corresponding to firefighter IDs in {FIREFIGHTER_NAMES} ONLY which are 
+             relevant to the data. IF THE FIREFIGHTER IS NOT RELEVANT TO THE DATA, DO NOT INCLUDE THEM IN THE LIST
              urgency: A float between 0 and 1 where 0 is NOT CRITICAL at all, and 1 necessitates immediate action.
               
              Example:
+             Query: What is the current heart rate of ff1 and ff2?
                     {{
                     "time": "2026-07-08T16:41:28.354+00:00",
                     "window": "point",
-                    "firefighters": {{1: ["heart", "current"], 2:[], 3:[]}},
+                    "firefighters": {[1, 2]},
                     "urgency": 0.5
                 }}
               """)
@@ -91,7 +91,7 @@ async def send_stuff(d: CapDecision, q: str) -> list[tuple[int, dict[str, list[A
     data = []
     for f in d.firefighters:
         qu = Query(
-            query= f"{q} \n Special Notes: {' '.join(d.firefighters[f])}",
+            query= f"{q}",
             window=d.window,
             urgency=d.urgency,
             time=d.time

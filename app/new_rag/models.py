@@ -85,14 +85,14 @@ class CapDecision(BaseModel):
     """
     time: datetime
     window: str
-    firefighters: dict[str, list[str]] # A dictionary of firefighter IDs mapped to a list of key words they should attend to.
+    firefighters: list[int] # A list of relevant firefighter IDs
     urgency: float
 
     # The following validate everything :D
 
     @field_validator('firefighters')
     @classmethod
-    def check_exists(cls, v: dict[int, list[str]]) -> dict[int, list[str]]:
+    def check_exists(cls, v: list[int]) -> list[int]:
         for f in v:
             if int(f) not in FIREFIGHTER_NAMES:
                 raise ValueError(f"This firefighter doesn't exist: {f}")

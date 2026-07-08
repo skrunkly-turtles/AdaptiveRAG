@@ -36,7 +36,7 @@ client = ollama.AsyncClient()
 
 #TODO: make system prompt
 POOL_PROMPT = (f""" You are a routing agent. 
-              Given the query and the notes in the prompt, ONLY return a dictionary of 
+              Given the query, ONLY return a dictionary of 
               which data pools in {POOLS} are helpful to answer the question, mapped to a float in the list: [0.3, 0.5, 0.7, 1]
               where 0.3 indicates peripheral usefulness, and 1 indicates vital to the query. 
               Follow the json schema EXACTLY and return nothing else.       
