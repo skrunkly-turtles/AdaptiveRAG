@@ -10,4 +10,5 @@ The first demo, not relevant anymore. Structure below:
 
 new_rag:
 The most current model. Structure below:
-<img width="1732" height="1262" alt="Screenshot 2026-06-23 163027" src="https://github.com/user-attachments/assets/2e317f55-b499-4164-ae88-c82e67afdc08" />
+<img width="1492" height="1126" alt="image" src="https://github.com/user-attachments/assets/edc7dd01-502b-4be4-b5b4-f3a2064eecab" />
+
