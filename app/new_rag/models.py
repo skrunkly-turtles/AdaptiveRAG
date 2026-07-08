@@ -120,6 +120,7 @@ class CapMemory(BaseModel):
     last_updated: datetime = Field(default_factory=datetime.now)
     conversation: list[dict[str, str]] = [] # The memory of the most recent conversation so far with MAX_TURNS
     data_summary: str = "No prior history yet. See cache." # The summary of what has happened so far!
+    data_cache: list[dict[Any, dict]] = [] # List of recent data points, key is mapped to the FF ID
     firefighter_summary: dict[int, str] = {} # A light summary of what each firefighter is doing/looking like :D
 
 class FF_MEMORY(RootModel[Dict[str, str]]):   

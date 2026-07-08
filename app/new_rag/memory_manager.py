@@ -9,6 +9,8 @@ The memory will be updated as such:
 from models import CapMemory, FF_MEMORY
 import ollama
 from datetime import datetime
+import json
+import csv
 
 # This is the latest data from the firefighters , for a query.
 LATEST_DATA = []
@@ -62,19 +64,25 @@ async def compress_window() -> None:
         system= SUMMARY_PROMPT,
         prompt= f"""
             data_summary: {memory.data_summary} \n
-            new_conversation: {memory.conversation[:-MAX_TURNS]}\n 
+            ff1_data_cache: {memory.data_cache} \n
+            new_conversation: {memory.conversation[-MAX_TURNS:]}\n 
         """,
         logprobs= True,
     )
         # Update the memory!
         memory.data_summary = response['response']
 
+        # Clear the cache
+        if memory.data_cache and len(memory.data_cache) > 1 and 1 in memory.data_cache and len(memory.data_cache[1]) > 7:
+            memory.data_cache = []
+
         # Update the CapMemory to pop the latest stuff only if the summarization actually worked :D
-        memory.conversation = memory.conversation[-MAX_TURNS:]
+        if len(memory.conversation) >= MAX_TURNS:
+            memory.conversation = memory.conversation[-MAX_TURNS:]
         memory.last_updated = datetime.now()
         
     except Exception as e:
-        print("Compression failed uh oh :(")
+        print(f"Compression failed uh oh :( {e}")
     
 
 async def update_ff_summaries() -> None:
@@ -129,3 +137,37 @@ async def summarize() -> None:
     """
     await update_ff_summaries(),
     await compress_window()
+    await export_memory_to_csv(memory)
+
+
+
+# Just to read what's happening:
+async def export_memory_to_csv(memory_obj: CapMemory, filename: str = "memory_validation.csv"):
+    """
+    Exports the current state of CapMemory to a CSV file for manual validation.
+    """
+    # Define the headers for your validation file
+    headers = ["last_updated", "data_summary", "conversation_json", "firefighter_summary_json"]
+    
+    try:
+        with open(filename, mode='w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=headers)
+            writer.writeheader()
+            
+            # Serialize complex nested types to clean JSON strings so they don't break CSV formatting
+            conversation_str = json.dumps(memory_obj.conversation, indent=2)
+            ff_summary_str = json.dumps(memory_obj.firefighter_summary, indent=2)
+            
+            # Format the datetime cleanly
+            last_updated_str = memory_obj.last_updated.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Write the single memory state row
+            writer.writerow({
+                "last_updated": last_updated_str,
+                "data_summary": memory_obj.data_summary,
+                "conversation_json": conversation_str,
+                "firefighter_summary_json": ff_summary_str
+            })
+                    
+    except Exception as e:
+        print(f"Failed to export memory to CSV: {e}")

@@ -26,21 +26,21 @@ async def clear_db() -> None:
     if os.path.exists(DB1_PATH):
         try:
             os.remove(DB1_PATH)
-            print(f"Cleared existing database: {DB1_PATH}")
+            print(f"Cleared database: {DB1_PATH}")
         except PermissionError:
             print("Could not delete DB1 file. Is another process or viewer open?")
     
     if os.path.exists(DB2_PATH):
         try:
             os.remove(DB2_PATH)
-            print(f"🗑️ Cleared existing database: {DB2_PATH}")
+            print(f"Cleared database: {DB2_PATH}")
         except PermissionError:
             print("Could not delete DB2 file. Is another process or viewer open?")
     
     if os.path.exists(DB3_PATH):
         try:
             os.remove(DB3_PATH)
-            print(f"🗑️ Cleared existing database: {DB3_PATH}")
+            print(f"Cleared database: {DB3_PATH}")
         except PermissionError:
             print("Could not delete DB3 file. Is another process or viewer open?")
 

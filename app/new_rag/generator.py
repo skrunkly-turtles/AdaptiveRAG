@@ -12,6 +12,7 @@ import random
 import pool_maker
 import asyncio
 from datetime import datetime
+from memory_manager import memory, compress_window
 
 def weighted_list(ranges, dec):
     """
@@ -67,7 +68,10 @@ def data() -> dict:
         "temp": weighted_list(TEMPERATURE, 2)
     }
 
+
 async def start_stream():
+    count = 0
+    big_count = 0
     await pool_maker.clear_db()
     while True:
         p1 = data()
@@ -77,6 +81,14 @@ async def start_stream():
         await pool_maker.process_incoming(p1, 1)
         await pool_maker.process_incoming(p2, 2)
         await pool_maker.process_incoming(p3, 3)
-    
+        count += 1
+        if count == 5:
+            d = {1: p1, 2: p2, 3: p3}
+            memory.conversation.append(d)
+            count = 0 
+            big_count += 1
+        if big_count == 7:
+            await compress_window()
+
         await asyncio.sleep(2)
 
