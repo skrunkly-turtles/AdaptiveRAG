@@ -22,7 +22,9 @@ client = ollama.AsyncClient()
 MAX_SUMMARY = 2000
 
 
-SYS_PROMPT = (f""" You are a precise agent. 
+SYS_PROMPT = (f""" You are a precise and concise agent. 
+              Given the query, the firefighters' data, and the overall data, answer the query completely with 
+              as little tokens as possible. 
 """)
 
 # This is the routing prompt to route the agents
@@ -68,6 +70,7 @@ async def route_ff(q:str) -> CapDecision:
     """
     Return a CapDecision outlining the firefighters which need to be deployed, and a quick note for them.
     """
+    print("routing ffs")
     response = await client.generate(
         model='qwen3:14b',
         system=ROUTE_PROMPT,
@@ -109,13 +112,14 @@ async def answer(q: str) -> str:
     relevant_ffs = await route_ff(q)
     LATEST_DATA[:] = await send_stuff(relevant_ffs, q)
 
-    # INSERT THE MEMORY TOO
+    print("answering query")
     response = await client.generate(
-        model='llama3.2:3b',
+        model='qwen3:14b',
         system=SYS_PROMPT,
         prompt= f"""
             Query: {q} \n
-            Data: {LATEST_DATA} \n
+            FireFighters: {LATEST_DATA} \n
+            Data Summary: {memory.data_summary}\n
         """,
         logprobs= True
     )

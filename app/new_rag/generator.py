@@ -71,7 +71,6 @@ def data() -> dict:
 
 async def start_stream():
     count = 0
-    big_count = 0
     await pool_maker.clear_db()
     while True:
         p1 = data()
@@ -86,9 +85,6 @@ async def start_stream():
             d = {1: p1, 2: p2, 3: p3}
             memory.conversation.append(d)
             count = 0 
-            big_count += 1
-        if big_count == 7:
-            await compress_window()
 
         await asyncio.sleep(2)
 

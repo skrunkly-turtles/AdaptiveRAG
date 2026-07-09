@@ -82,6 +82,7 @@ async def det_pools(q: Query) -> list:
     """
     # (1) We find the relevant pools and create a dictionary of their name mapped to a float between 0 and 1 
     # regarding how relevant they are
+    print("determining pools 1")
     response = await client.generate(
         model='qwen3:14b',
         system=POOL_PROMPT,
@@ -159,6 +160,7 @@ async def read_pools(r: Report, q: Query) -> tuple[int, dict[str, list[Any]]]:
       "OXYGEN_POOL": [ ... ]
     })
     """
+    print("reading pools 1")
     d = await get_data(r, FF_ID)
     response = await client.generate(
         model='llama3.2:3b',

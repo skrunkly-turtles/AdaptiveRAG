@@ -80,6 +80,7 @@ async def det_pools(q: Query) -> list:
     """
     Return a list of relevant pools to make the Report depending on (1) the Query, and then (2) the Urgency
     """
+    print("determining pools 2")
     # (1) We find the relevant pools and create a dictionary of their name mapped to a float between 0 and 1 
     # regarding how relevant they are
     response = await client.generate(
@@ -159,6 +160,7 @@ async def read_pools(r: Report, q: Query) -> tuple[int, dict[str, list[Any]]]:
       "OXYGEN_POOL": [ ... ]
     })
     """
+    print("reading pools 2")
     d = await get_data(r, FF_ID)
     response = await client.generate(
         model='llama3.2:3b',

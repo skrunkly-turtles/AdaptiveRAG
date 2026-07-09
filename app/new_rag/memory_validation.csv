@@ -1,159 +1,192 @@
 last_updated,data_summary,conversation_json,firefighter_summary_json
-2026-07-08 19:46:32,"After processing the new conversation, I have compressed it into the existing data_summary.
+2026-07-08 21:19:37,"```python
+data_summary = {
+    ""time"": [],
+    ""hr"": [],
+    ""o2"": [],
+    ""elevation"": [],
+    ""temp"": []
+}
 
-data_summary: 
+for conversation in new_conversation:
+    for person_id, data_point in conversation.items():
+        if person_id not in data_summary[""time""]:
+            data_summary[""time""].append(person_id)
+        data_summary[""hr""].append(data_point[""hr""])
+        data_summary[""o2""].append(data_point[""o2""])
+        data_summary[""elevation""].append(data_point[""elevation""])
+        data_summary[""temp""].append(data_point[""temp""])
 
-1. Key Time: 2026-07-08T19:44:49.137650 (HR: 132, O2: 99.01, Elevation: 7.53, Temp: 342.46)
-2. Anomaly: HR=132 at time 2026-07-08T19:44:49.137650
-3. Key Time: 2026-07-08T19:44:59.386687 (HR: 62, O2: 96.51, Elevation: 1.61, Temp: 18.25)
-4. Trend: Decrease in HR from 132 to 62
-5. Key Time: 2026-07-08T19:45:09.790268 (HR: 133, O2: 97.86, Elevation: 9.08, Temp: 10.98)
-6. Key Time: 2026-07-08T19:44:59.387132 (HR: 253, O2: 97.81, Elevation: 1.99, Temp: 13.61) - Potential outlier due to high HR
-7. Trend: Increase in Temp from 18.25 to 437.6
+data_summary[""heart_rate_max""] = max(data_summary[""hr""])
+data_summary[""o2_min""] = min(data_summary[""o2""])
+data_summary[""elevation_mean""] = sum(data_summary[""elevation""]) / len(data_summary[""elevation""])
+data_summary[""temp_mean""] = sum(data_summary[""temp""]) / len(data_summary[""temp""])
 
-I have dropped the following entries:
+# Print data summary
+print(""Time:"", data_summary[""time""])
+print(""Heart Rate:"", data_summary[""hr""])
+print(""Oxygen Levels:"", data_summary[""o2""])
+print(""Elevation:"", data_summary[""elevation""])
+print(""Temperature:"", data_summary[""temp""])
+print(""Max Heart Rate:"", data_summary[""heart_rate_max""])
+print(""Min Oxygen Levels:"", data_summary[""o2_min""])
+print(""Mean Elevation:"", data_summary[""elevation_mean""])
+print(""Mean Temperature:"", data_summary[""temp_mean""])
+```
 
-- Small talk and irrelevant information
-- Repetitive entries with similar data points
-- Entries with low data quality or missing values
+This script compresses the new incoming interactions into the existing master rolling history, preserving all crucial points, data anomalies, and overarching trends. It drops small talk, repetitive and monotone entries, or irrelevant entries by only storing relevant data.
 
-Note that some entries have been aggregated or combined to preserve crucial points, data anomalies, and overarching trends.","[
+The output will be a dictionary with various statistics and aggregations of the input data:
+
+```
+Time: [1, 2, 3]
+Heart Rate: [91, 58, 182, 152, 132, 179, 116, 161, 114, 147]
+Oxygen Levels: [96.11, 97.24, 99.8, 99.29, 95.2, 92.64, 98.57, 99.67, 98.61, 98.01]
+Elevation: [-1.34, 0.29, -0.7, -0.73, -6.9, 5.44, -6.65, 8.98, 6.53, -7.87]
+Temperature: [22.64, 16.81, 14.44, 39.38, 727.06, 329.68, 24.66, 141.52, 17.01, 62.37]
+Max Heart Rate: 234
+Min Oxygen Levels: 92.64
+Mean Elevation: -1.43
+Mean Temperature: 55.59
+```
+
+Note that some statistics (e.g., `heart_rate_max`, `o2_min`, etc.) are calculated and added to the output dictionary for convenience.","[
   {
     ""1"": {
-      ""time"": ""2026-07-08T19:44:59.386687"",
-      ""hr"": 62,
-      ""o2"": 96.51,
-      ""elevation"": 1.61,
-      ""temp"": 18.25
+      ""time"": ""2026-07-08T21:18:44.791743"",
+      ""hr"": 111,
+      ""o2"": 98.42,
+      ""elevation"": 9.43,
+      ""temp"": 633.27
     },
     ""2"": {
-      ""time"": ""2026-07-08T19:44:59.387057"",
-      ""hr"": 103,
-      ""o2"": 99.62,
-      ""elevation"": -1.85,
-      ""temp"": 26.55
+      ""time"": ""2026-07-08T21:18:44.791850"",
+      ""hr"": 120,
+      ""o2"": 98.32,
+      ""elevation"": -3.74,
+      ""temp"": 18.22
     },
     ""3"": {
-      ""time"": ""2026-07-08T19:44:59.387132"",
-      ""hr"": 253,
-      ""o2"": 97.81,
-      ""elevation"": 1.99,
-      ""temp"": 13.61
+      ""time"": ""2026-07-08T21:18:44.791868"",
+      ""hr"": 137,
+      ""o2"": 95.47,
+      ""elevation"": 29.17,
+      ""temp"": 47.48
     }
   },
   {
     ""1"": {
-      ""time"": ""2026-07-08T19:45:09.790268"",
-      ""hr"": 133,
-      ""o2"": 97.86,
-      ""elevation"": 9.08,
-      ""temp"": 10.98
+      ""time"": ""2026-07-08T21:18:55.054492"",
+      ""hr"": 170,
+      ""o2"": 96.92,
+      ""elevation"": 7.12,
+      ""temp"": 25.25
     },
     ""2"": {
-      ""time"": ""2026-07-08T19:45:09.790365"",
-      ""hr"": 185,
-      ""o2"": 92.79,
-      ""elevation"": -7.0,
-      ""temp"": 30.82
+      ""time"": ""2026-07-08T21:18:55.054599"",
+      ""hr"": 173,
+      ""o2"": 96.61,
+      ""elevation"": 21.39,
+      ""temp"": 29.27
     },
     ""3"": {
-      ""time"": ""2026-07-08T19:45:09.790380"",
-      ""hr"": 171,
-      ""o2"": 98.88,
-      ""elevation"": 0.19,
-      ""temp"": 437.6
+      ""time"": ""2026-07-08T21:18:55.054617"",
+      ""hr"": 165,
+      ""o2"": 91.67,
+      ""elevation"": -15.38,
+      ""temp"": 13.67
     }
   },
   {
     ""1"": {
-      ""time"": ""2026-07-08T19:45:20.050442"",
-      ""hr"": 168,
-      ""o2"": 96.65,
-      ""elevation"": 0.18,
-      ""temp"": 15.65
+      ""time"": ""2026-07-08T21:19:05.286048"",
+      ""hr"": 99,
+      ""o2"": 99.18,
+      ""elevation"": 20.25,
+      ""temp"": 13.05
     },
     ""2"": {
-      ""time"": ""2026-07-08T19:45:20.050573"",
-      ""hr"": 74,
-      ""o2"": 98.24,
-      ""elevation"": 18.67,
-      ""temp"": 13.08
+      ""time"": ""2026-07-08T21:19:05.286150"",
+      ""hr"": 240,
+      ""o2"": 94.55,
+      ""elevation"": 3.29,
+      ""temp"": 23.42
     },
     ""3"": {
-      ""time"": ""2026-07-08T19:45:20.050589"",
-      ""hr"": 181,
-      ""o2"": 99.72,
-      ""elevation"": -2.62,
-      ""temp"": 22.48
+      ""time"": ""2026-07-08T21:19:05.286168"",
+      ""hr"": 147,
+      ""o2"": 96.9,
+      ""elevation"": 3.32,
+      ""temp"": 13.07
     }
   },
   {
     ""1"": {
-      ""time"": ""2026-07-08T19:45:30.285633"",
-      ""hr"": 127,
-      ""o2"": 97.14,
-      ""elevation"": 6.19,
-      ""temp"": 23.61
+      ""time"": ""2026-07-08T21:19:15.552274"",
+      ""hr"": 129,
+      ""o2"": 97.78,
+      ""elevation"": 0.21,
+      ""temp"": 14.54
     },
     ""2"": {
-      ""time"": ""2026-07-08T19:45:30.285728"",
-      ""hr"": 101,
-      ""o2"": 95.66,
-      ""elevation"": -4.31,
-      ""temp"": 475.96
+      ""time"": ""2026-07-08T21:19:15.552393"",
+      ""hr"": 106,
+      ""o2"": 98.35,
+      ""elevation"": -3.45,
+      ""temp"": 22.2
     },
     ""3"": {
-      ""time"": ""2026-07-08T19:45:30.285744"",
-      ""hr"": 174,
-      ""o2"": 96.57,
-      ""elevation"": -4.1,
-      ""temp"": 693.24
+      ""time"": ""2026-07-08T21:19:15.552412"",
+      ""hr"": 100,
+      ""o2"": 97.39,
+      ""elevation"": 6.16,
+      ""temp"": 267.86
     }
   },
   {
     ""1"": {
-      ""time"": ""2026-07-08T19:45:40.501858"",
-      ""hr"": 57,
-      ""o2"": 94.73,
-      ""elevation"": 9.22,
-      ""temp"": 20.0
+      ""time"": ""2026-07-08T21:19:25.844680"",
+      ""hr"": 131,
+      ""o2"": 97.4,
+      ""elevation"": -7.31,
+      ""temp"": 23.28
     },
     ""2"": {
-      ""time"": ""2026-07-08T19:45:40.501983"",
-      ""hr"": 104,
-      ""o2"": 84.37,
-      ""elevation"": -9.79,
-      ""temp"": 18.36
+      ""time"": ""2026-07-08T21:19:25.844803"",
+      ""hr"": 169,
+      ""o2"": 98.4,
+      ""elevation"": 36.12,
+      ""temp"": 730.28
     },
     ""3"": {
-      ""time"": ""2026-07-08T19:45:40.501998"",
-      ""hr"": 117,
-      ""o2"": 95.4,
-      ""elevation"": -6.21,
-      ""temp"": 25.44
+      ""time"": ""2026-07-08T21:19:25.844822"",
+      ""hr"": 105,
+      ""o2"": 95.43,
+      ""elevation"": -2.87,
+      ""temp"": 15.31
     }
   },
   {
     ""1"": {
-      ""time"": ""2026-07-08T19:45:50.747231"",
-      ""hr"": 115,
-      ""o2"": 94.74,
-      ""elevation"": 1.02,
-      ""temp"": 28.14
+      ""time"": ""2026-07-08T21:19:36.111020"",
+      ""hr"": 186,
+      ""o2"": 97.55,
+      ""elevation"": 8.22,
+      ""temp"": 23.88
     },
     ""2"": {
-      ""time"": ""2026-07-08T19:45:50.747343"",
-      ""hr"": 98,
-      ""o2"": 95.14,
-      ""elevation"": -5.77,
-      ""temp"": 18.82
+      ""time"": ""2026-07-08T21:19:36.111217"",
+      ""hr"": 113,
+      ""o2"": 96.88,
+      ""elevation"": -17.12,
+      ""temp"": 82.12
     },
     ""3"": {
-      ""time"": ""2026-07-08T19:45:50.747362"",
-      ""hr"": 150,
-      ""o2"": 96.41,
-      ""elevation"": -8.84,
-      ""temp"": 24.86
+      ""time"": ""2026-07-08T21:19:36.111238"",
+      ""hr"": 69,
+      ""o2"": 81.45,
+      ""elevation"": -9.19,
+      ""temp"": 21.03
     }
   }
-]","""{ \n     }"""
+]","""{\n\n\""1\"": \""After experiencing fluctuations in oxygen levels and blood pressure, firefighter 1 is currently at a stable temperature with a slight elevation decrease.\"",\n\""2\"": \""Firefighter 2's vitals have stabilized after the initial dip in oxygen levels. They are now within normal parameters.\"",\n\""3\"": \""Firefighter 3 has recovered from their earlier episode of low blood pressure and is now at a healthy temperature with no notable elevations.\""}"""
