@@ -91,6 +91,7 @@ async def det_pools(q: Query) -> list:
         format=Relevance.model_json_schema()
     )
     r = response['response']
+    print(r)
     
     # (2) Now we use the urgency score and the relevance score to decide which pools to actually draw from:
     if q.urgency > 0.7:
@@ -121,8 +122,10 @@ async def det_pools(q: Query) -> list:
                 l.append(p)
     
     if not l:
+        print([m[0]])
         return [m[0]]
     else:
+        print(l)
         return l            
 
 # This is the Report that is sent to the pools 
@@ -166,7 +169,6 @@ async def read_pools(r: Report, q: Query) -> tuple[int, dict[str, list[Any]]]:
         model='llama3.2:3b',
         system=SYS_PROMPT,
         prompt= f"Question and Notes: {q.query} \n Data: {d}",
-        logprobs= True,
     )
     d["QUERY SUMMARY"] = [response['response']]
 

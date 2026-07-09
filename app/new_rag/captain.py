@@ -41,7 +41,7 @@ ROUTE_PROMPT = (f""" You are a concise agent. Given the query from the user, the
                 {{
                     "time": "{datetime.now()}",
                     "window": "long",
-                    "firefighters": {{1: [], 2:[], 3:[]}},
+                    "firefighters": {[1, 2, 3]},
                     "urgency": 0.5
                 }}
 
@@ -79,7 +79,6 @@ async def route_ff(q:str) -> CapDecision:
             Context: {memory.data_summary},
             Firefighters' Summary: {memory.firefighter_summary}
         """,
-        logprobs= True,
         format=CapDecision.model_json_schema()
     )
     print(response['response'])
@@ -121,7 +120,6 @@ async def answer(q: str) -> str:
             FireFighters: {LATEST_DATA} \n
             Data Summary: {memory.data_summary}\n
         """,
-        logprobs= True
     )
     return response['response']
 
