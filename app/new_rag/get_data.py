@@ -18,7 +18,7 @@ FILES = {
     "ALL_LOG": '*',
     "ELEVATION": 'elevation',
     "HR":'hr',
-    "O2_LOG": 'o2',
+    "O2": 'o2',
     "TEMP" :'temp'
 }
 
