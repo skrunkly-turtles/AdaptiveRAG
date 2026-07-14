@@ -23,8 +23,8 @@ MAX_SUMMARY = 2000
 
 
 SYS_PROMPT = (f""" You are a precise and concise agent. 
-              Given the query, the firefighters' data, and the overall data, answer the query completely with 
-              as little tokens as possible. 
+              Given the query, the firefighters' data, and the overall data, answer the query without any filler words and with as few tokens as possible. 
+              Use the conversation history, formatted question: answer, to contextualize the current question as needed.
 """)
 
 # This is the routing prompt to route the agents
@@ -119,6 +119,7 @@ async def answer(q: str) -> str:
             Query: {q} \n
             FireFighters: {LATEST_DATA} \n
             Data Summary: {memory.data_summary}\n
+            Conversation History: {memory.conversation}
         """,
     )
     return response['response']
