@@ -1,15 +1,10 @@
-# These downloads are for the LangChain library. It is responsible for
-# the Core LLM Orchestration 
 langchain-core
 langchain-community
 langchain-ollama
 langchain-text-splitters
-
+torch
 aiosqlite
 faiss-cpu
 python-dotenv 
-pydantic # This download ensures that the input data is of the correct form
-ragas # This download is for evaluating the output and accuracy
-
-# Uncomment the below line if we switch from the LLAMA model to an opensource:
-# sentence-transformers 
+pydantic
+ragas

@@ -84,7 +84,7 @@ async def det_pools(q: Query) -> list:
     # regarding how relevant they are
     print("determining pools 1")
     response = await client.generate(
-        model='qwen3:14b',
+        model='qwen2.5:14b',
         system=POOL_PROMPT,
         prompt= q.query,
         logprobs= True,
@@ -107,7 +107,7 @@ async def det_pools(q: Query) -> list:
     try:
         r = json.loads(r)
     except (json.JSONDecodeError, TypeError):
-        print("Warning: Failed to parse LLM response into JSON. Using fallback pool.")
+        print("Warning: Using fallback pool.")
         return ["SUMMARIES"]
     
     for p in r:

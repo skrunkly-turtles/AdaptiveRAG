@@ -60,7 +60,7 @@ async def compress_window() -> None:
     print("Compressing turns!")
     try: 
         response = await client.generate(
-        model='llama3.2:3b',
+        model='qwen2.5:14b',
         system= SUMMARY_PROMPT,
         prompt= f"""
             data_summary: {memory.data_summary} \n
@@ -106,7 +106,7 @@ async def update_ff_summaries() -> None:
     
     try:
         response = await client.generate(
-        model='llama3.2:3b',
+        model='qwen2.5:14b',
         system= FIREFIGHTER_PROMPT,
         prompt= f"""
             new_conversation: {memory.conversation[-MAX_TURNS:]}\n 

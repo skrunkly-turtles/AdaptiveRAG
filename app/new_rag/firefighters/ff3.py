@@ -84,7 +84,7 @@ async def det_pools(q: Query) -> list:
     # (1) We find the relevant pools and create a dictionary of their name mapped to a float between 0 and 1 
     # regarding how relevant they are
     response = await client.generate(
-        model='llama3.2:3b',
+        model='qwen2.5:14b',
         system=POOL_PROMPT,
         prompt= q.query,
         logprobs= True,

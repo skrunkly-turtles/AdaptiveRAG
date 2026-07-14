@@ -72,7 +72,7 @@ async def route_ff(q:str) -> CapDecision:
     """
     print("routing ffs")
     response = await client.generate(
-        model='qwen3:14b',
+        model='qwen2.5:14b',
         system=ROUTE_PROMPT,
         prompt= f"""
             Query: {q},
@@ -113,7 +113,7 @@ async def answer(q: str) -> str:
 
     print("answering query")
     response = await client.generate(
-        model='qwen3:14b',
+        model='qwen2.5:14b',
         system=SYS_PROMPT,
         prompt= f"""
             Query: {q} \n
