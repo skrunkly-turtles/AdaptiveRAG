@@ -66,8 +66,7 @@ async def compress_window() -> None:
             data_summary: {memory.data_summary} \n
             ff1_data_cache: {memory.data_cache} \n
             new_conversation: {memory.conversation[-MAX_TURNS:]}\n 
-        """,
-        logprobs= True,
+        """
     )
         # Update the memory!
         memory.data_summary = response['response']
@@ -113,7 +112,6 @@ async def update_ff_summaries() -> None:
             Existing ff summaries: {memory.firefighter_summary} \n
             New ff summaries: {ff_summaries}
         """,
-        logprobs= True,
         format=FF_MEMORY.model_json_schema()
         )
         try:

@@ -87,7 +87,6 @@ async def det_pools(q: Query) -> list:
         model='qwen2.5:14b',
         system=POOL_PROMPT,
         prompt= q.query,
-        logprobs= True,
         format=Relevance.model_json_schema()
     )
     r = response['response']
