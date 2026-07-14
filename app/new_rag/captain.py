@@ -111,6 +111,11 @@ async def answer(q: str) -> str:
     relevant_ffs = await route_ff(q)
     LATEST_DATA[:] = await send_stuff(relevant_ffs, q)
 
+    formatted_history = ""
+    for t in memory.conversation:
+        for question, response in t.items():
+            formatted_history += f"Question: {question}\nAnswer: {response}\n\n"
+
     print("answering query")
     response = await client.generate(
         model='qwen2.5:14b',
@@ -119,7 +124,7 @@ async def answer(q: str) -> str:
             Query: {q} \n
             FireFighters: {LATEST_DATA} \n
             Data Summary: {memory.data_summary}\n
-            Conversation History: {memory.conversation}
+            Conversation History: {formatted_history}
         """,
     )
     return response['response']
