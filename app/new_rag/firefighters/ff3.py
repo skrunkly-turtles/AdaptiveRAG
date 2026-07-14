@@ -166,7 +166,7 @@ async def read_pools(r: Report, q: Query) -> tuple[int, dict[str, list[Any]]]:
     print("reading pools 3")
     d = await get_data(r, FF_ID)
     response = await client.generate(
-        model='llama3.2:3b',
+        model='qwen2.5:14b',
         system=SYS_PROMPT,
         prompt= f"Question and Notes: {q.query} \n Data: {d}",
     )
