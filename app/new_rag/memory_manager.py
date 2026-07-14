@@ -29,8 +29,12 @@ memory = CapMemory(
 
 SUMMARY_PROMPT = ("""You are a precise, memory management process. Compress the new incoming interactions, denoted
                   as new_conversation into the existing master rolling history, denoted data_summary.
-                  Preserve all crucial points, data anomalies, and overarching trends. 
-                  Drop all small talk, repetitive and monotone entries, or irrelevant entries. 
+                  RULES:
+                  - Preserve all crucial points, data anomalies, and overarching trends. 
+                  - Drop all small talk, repetitive and monotone entries, or irrelevant entries. 
+                  - Keep summary under 3 sentences.
+                  - Learn from the old summary. This new summary will REPLACE the old summary with its important notes AND new data.
+
                   """)
 
 FIREFIGHTER_PROMPT = ("""
