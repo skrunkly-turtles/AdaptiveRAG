@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import gradio as gr
 import json
+import traceback
 
 # Import your existing captain logic
 import captain  
@@ -17,72 +18,91 @@ DB_PATHS = {
     "Firefighter 3": "data/vitals3.db"
 }
 def fetch_memory_state():
-    """Reads live memory structures directly from the running captain.memory 
-    and formats them cleanly for the Gradio UI."""
-    
-    # 1. Fetch & Format Long-Term Master Data Summary
-    data_summary = getattr(captain.memory, "data_summary", "No consolidated memory yet.")
-    
-    # Format the last updated timestamp
-    last_updated = getattr(captain.memory, "last_updated", "Never")
-    if hasattr(last_updated, "strftime"):
-        last_updated_str = f"Last Consolidated: {last_updated.strftime('%Y-%m-%d %H:%M:%S')}"
-    else:
-        last_updated_str = f"Last Consolidated: {last_updated}"
+    """Reads live memory structures directly from the imported memory object,
+    fully wrapped to prevent silent Gradio freezes."""
+    try:
+        # Use the directly imported 'memory' object
+        # 1. Fetch & Format Long-Term Master Data Summary
+        data_summary = getattr(memory, "data_summary", "No consolidated memory yet.")
         
-    # 2. Fetch & Format Firefighter Long-Term Status Profiles
-    ff_summary = getattr(captain.memory, "firefighter_summary", {})
-    if isinstance(ff_summary, str):
-        try:
-            ff_summary = json.loads(ff_summary)
-        except Exception:
-            pass
+        # Format the last updated timestamp
+        last_updated = getattr(memory, "last_updated", "Never")
+        if hasattr(last_updated, "strftime"):
+            last_updated_str = f"Last Consolidated: {last_updated.strftime('%Y-%m-%d %H:%M:%S')}"
+        else:
+            last_updated_str = f"Last Consolidated: {last_updated}"
             
-    ff_html = "<div style='display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;'>"
-    colors = {1: "#3b82f6", 2: "#10b981", 3: "#8b5cf6"}
-    for idx in [1, 2, 3]:
-        status = ff_summary.get(str(idx)) or ff_summary.get(idx) or "No status recorded in long-term memory."
-        color = colors[idx]
-        ff_html += f"""
-        <div style="
-            background: var(--block-background-fill, #1f2937); 
-            border: 1px solid var(--border-color-primary, #374151); 
-            border-radius: 8px; 
-            padding: 14px; 
-            border-top: 4px solid {color};
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            color: var(--body-text-color, #f3f4f6);
-        ">
-            <strong style="color: {color}; font-size: 0.95em; display: flex; align-items: center; gap: 6px;">🚒 Firefighter {idx} Memory Profile</strong>
-            <p style="margin: 8px 0 0 0; font-size: 0.88em; color: var(--text-color-subdued, #9ca3af); line-height: 1.4;">{status}</p>
+        # 2. Fetch & Format Firefighter Long-Term Status Profiles
+        ff_summary = getattr(memory, "firefighter_summary", {})
+        
+        # If it's a string, try parsing it to a dictionary
+        if isinstance(ff_summary, str):
+            try:
+                ff_summary = json.loads(ff_summary)
+            except Exception:
+                pass
+                
+        ff_html = "<div style='display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;'>"
+        colors = {1: "#3b82f6", 2: "#10b981", 3: "#8b5cf6"}
+        for idx in [1, 2, 3]:
+            # Safeguard lookup whether keys are integers or strings
+            status = "No status recorded in long-term memory."
+            if isinstance(ff_summary, dict):
+                status = ff_summary.get(str(idx)) or ff_summary.get(idx) or status
+            elif isinstance(ff_summary, str):
+                status = ff_summary  # Fallback if the whole summary is an unparsed string
+                
+            color = colors[idx]
+            ff_html += f"""
+            <div style="
+                background: var(--block-background-fill, #1f2937); 
+                border: 1px solid var(--border-color-primary, #374151); 
+                border-radius: 8px; 
+                padding: 14px; 
+                border-top: 4px solid {color};
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                color: var(--body-text-color, #f3f4f6);
+            ">
+                <strong style="color: {color}; font-size: 0.95em; display: flex; align-items: center; gap: 6px;">Firefighter {idx} Memory Profile</strong>
+                <p style="margin: 8px 0 0 0; font-size: 0.88em; color: var(--text-color-subdued, #9ca3af); line-height: 1.4;">{status}</p>
+            </div>
+            """
+        ff_html += "</div>"
+        
+        # 3. Unpack Short-Term Conversation Buffer safely
+        conversation = getattr(memory, "conversation", [])
+        conv_rows = []
+        
+        for turn in conversation:
+            if isinstance(turn, dict):
+                for q, ans in turn.items():
+                    # Filter out those accidental terminal inputs if they exist
+                    if q.strip() in ("1", "2", "3") and ans == "[object Object]":
+                        continue
+                    conv_rows.append([q, ans])
+                    
+        if conv_rows:
+            conv_df = pd.DataFrame(conv_rows, columns=["User Query", "Captain Agent Response"])
+        else:
+            conv_df = pd.DataFrame(
+                [["No active queries", "Type in Tab 1 to fill the live memory buffer."]], 
+                columns=["User Query", "Captain Agent Response"]
+            )
+            
+        return data_summary, ff_html, conv_df, last_updated_str
+
+    except Exception as e:
+        # If anything fails, return the error message visually to Tab 3
+        error_trace = traceback.format_exc()
+        error_html = f"""
+        <div style="padding: 15px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; color: #f87171; font-family: monospace;">
+            <strong>Memory Fetch Error:</strong> {str(e)}<br><br>
+            <pre style="margin: 0; font-size: 0.85em; overflow-x: auto;">{error_trace}</pre>
         </div>
         """
-    ff_html += "</div>"
+        err_df = pd.DataFrame([["Error", str(e)]], columns=["User Query", "Captain Agent Response"])
+        return f"Error loading summary: {str(e)}", error_html, err_df, "Error occurred"
     
-    # 3. UNPACK Short-Term Conversation Buffer safely
-    conversation = getattr(captain.memory, "conversation", [])
-    conv_rows = []
-    
-    for turn in conversation:
-        if isinstance(turn, dict):
-            # Unpack key-value pairs (e.g., {"query": "response"})
-            for q, ans in turn.items():
-                # Filter out those accidental terminal inputs if they exist
-                if q.strip() in ("1", "2", "3") and ans == "[object Object]":
-                    continue
-                conv_rows.append([q, ans])
-                
-    # If we have clean history, put it in a DataFrame; otherwise, show an empty state
-    if conv_rows:
-        conv_df = pd.DataFrame(conv_rows, columns=["User Query", "Captain Agent Response"])
-    else:
-        conv_df = pd.DataFrame(
-            [["No active queries", "Type in Tab 1 to fill the live memory buffer."]], 
-            columns=["User Query", "Captain Agent Response"]
-        )
-        
-    return data_summary, ff_html, conv_df, last_updated_str
-
 # --- Database Helper to Fetch Isolated DB Data ---
 
 def fetch_single_ff_db(path: str) -> pd.DataFrame:
