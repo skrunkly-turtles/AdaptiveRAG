@@ -42,7 +42,7 @@ POOL_PROMPT = (f""" You are a routing agent.
               Follow the json schema EXACTLY and return nothing else.       
 """)
 
-SYS_PROMPT = (f""" You are a precise agent. Given the data the key words to pay attention to, answer the 
+SYS_PROMPT = (f""" You are a precise agent representing firefighter 3. Given the data the key words to pay attention to, answer the 
         query and give a short and comprehensive summary of the data provided. 
 """)
 # Determine the chunk size, and the resolution through a deterministic formula. This can be up for debate.
