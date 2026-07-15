@@ -4,6 +4,7 @@ import sqlite3
 import os
 import pandas as pd
 import gradio as gr
+import json
 
 # Import your existing captain logic
 import captain  
@@ -15,6 +16,60 @@ DB_PATHS = {
     "Firefighter 2": "data/vitals2.db",
     "Firefighter 3": "data/vitals3.db"
 }
+def fetch_memory_state():
+    """Reads live memory structures directly from the running captain.memory."""
+    # 1. Master Data Summary
+    data_summary = getattr(captain.memory, "data_summary", "No consolidated memory yet.")
+    
+    # Last updated timestamp formatting
+    last_updated = getattr(captain.memory, "last_updated", "Never")
+    if hasattr(last_updated, "strftime"):
+        last_updated_str = f"Last Consolidated: {last_updated.strftime('%Y-%m-%d %H:%M:%S')}"
+    else:
+        last_updated_str = f"Last Consolidated: {last_updated}"
+        
+    # 2. Firefighter Summaries
+    ff_summary = getattr(captain.memory, "firefighter_summary", {})
+    if isinstance(ff_summary, str):
+        try:
+            ff_summary = json.loads(ff_summary)
+        except Exception:
+            pass
+            
+    ff_html = "<div style='display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;'>"
+    colors = {1: "#3b82f6", 2: "#10b981", 3: "#8b5cf6"}
+    for idx in [1, 2, 3]:
+        status = ff_summary.get(str(idx)) or ff_summary.get(idx) or "No status recorded in long-term memory."
+        color = colors[idx]
+        ff_html += f"""
+        <div style="
+            background: #ffffff; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            padding: 14px; 
+            border-top: 4px solid {color};
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        ">
+            <strong style="color: {color}; font-size: 0.95em; display: flex; align-items: center; gap: 6px;">Firefighter {idx} Memory Profile</strong>
+            <p style="margin: 8px 0 0 0; font-size: 0.88em; color: #475569; line-height: 1.4;">{status}</p>
+        </div>
+        """
+    ff_html += "</div>"
+    
+    # 3. Short-term Conversation turns
+    conversation = getattr(captain.memory, "conversation", [])
+    conv_rows = []
+    for turn in conversation:
+        if isinstance(turn, dict):
+            for q, ans in turn.items():
+                conv_rows.append([q, ans])
+                
+    if conv_rows:
+        conv_df = pd.DataFrame(conv_rows, columns=["User Query", "Captain Agent Response"])
+    else:
+        conv_df = pd.DataFrame([["Buffer Empty", "Active conversation turns have not reached compression limit."]], columns=["User Query", "Captain Agent Response"])
+        
+    return data_summary, ff_html, conv_df, last_updated_str
 
 # --- Database Helper to Fetch Isolated DB Data ---
 
@@ -63,16 +118,19 @@ def fetch_all_firefighters():
 # --- HTML Generator for High-End Demo Visuals ---
 
 def generate_telemetry_html(decision, route_lat=None, fetch_lat=None, gen_lat=None, total_lat=None):
+    """Generates a cohesive, theme-adaptive HTML card for the demo UI."""
+    
+    # 1. Map firefighters to clean visual chips
     ff_chips = ""
-    colors = {1: "#3b82f6", 2: "#10b981", 3: "#8b5cf6"}
-    for ff in decision.firefighters :
+    colors = {1: "#3b82f6", 2: "#10b981", 3: "#8b5cf6"}  # Blue, Green, Purple
+    for ff in decision.firefighters:
         color = colors.get(int(ff), "#6b7280")
         ff_chips += f"""
         <span style="
             background-color: {color}; 
             color: white; 
             padding: 4px 10px; 
-            border-radius: 12px; 
+            border-radius: 8px; 
             font-weight: 600; 
             font-size: 0.85em;
             margin-right: 6px;
@@ -82,31 +140,34 @@ def generate_telemetry_html(decision, route_lat=None, fetch_lat=None, gen_lat=No
         ">FF {ff}</span>
         """
     if not ff_chips:
-        ff_chips = "<span style='color: #9ca3af; font-style: italic;'>None Selected</span>"
+        ff_chips = "<span style='color: var(--text-color-subdued, #9ca3af); font-style: italic;'>None Selected</span>"
 
+    # 2. Dynamic Urgency Badges
     urgency_val = float(decision.urgency)
     if urgency_val >= 0.7:
-        urgency_bg = "#fef2f2"
-        urgency_color = "#ef4444"
-        urgency_border = "#fca5a5"
+        urgency_bg = "rgba(239, 68, 68, 0.15)"
+        urgency_color = "#f87171"
+        urgency_border = "#ef4444"
         urgency_text = f"CRITICAL ({urgency_val})"
         pulsing = "animation: pulse 1.5s infinite;"
     elif urgency_val >= 0.4:
-        urgency_bg = "#fffbeb"
-        urgency_color = "#d97706"
-        urgency_border = "#fcd34d"
+        urgency_bg = "rgba(217, 119, 6, 0.15)"
+        urgency_color = "#fbbf24"
+        urgency_border = "#d97706"
         urgency_text = f"ELEVATED ({urgency_val})"
         pulsing = ""
     else:
-        urgency_bg = "#f0fdf4"
-        urgency_color = "#15803d"
-        urgency_border = "#bbf7d0"
+        urgency_bg = "rgba(16, 185, 129, 0.15)"
+        urgency_color = "#34d399"
+        urgency_border = "#10b981"
         urgency_text = f"ROUTINE ({urgency_val})"
         pulsing = ""
 
+    # 3. Format Latencies (if available)
     def fmt_lat(val):
         return f"{val:.2f}s" if val is not None else "--"
 
+    # THEME ADAPTIVE CSS CHANGES HAPPEN HERE:
     html_content = f"""
     <style>
         @keyframes pulse {{
@@ -116,15 +177,15 @@ def generate_telemetry_html(decision, route_lat=None, fetch_lat=None, gen_lat=No
         }}
     </style>
     <div style="
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
+        font-family: var(--font, -apple-system, BlinkMacSystemFont, sans-serif);
+        background: var(--block-background-fill, #1f2937);
+        border: 1px solid var(--border-color-primary, #374151);
+        border-radius: var(--block-radius, 8px);
         padding: 20px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        color: var(--body-text-color, #f3f4f6);
     ">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 12px; margin-bottom: 16px;">
-            <h3 style="margin: 0; color: #1f2937; font-size: 1.2em; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color-secondary, #4b5563); padding-bottom: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0; color: var(--block-title-text-color, #ffffff); font-size: 1.1em; font-weight: 700; display: flex; align-items: center; gap: 8px;">
                 Captain Command Routing
             </h3>
             <span style="
@@ -142,37 +203,36 @@ def generate_telemetry_html(decision, route_lat=None, fetch_lat=None, gen_lat=No
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
             <div>
-                <p style="margin: 0 0 4px 0; font-size: 0.8em; color: #6b7280; font-weight: 600; text-transform: uppercase;">Active Deployments</p>
+                <p style="margin: 0 0 4px 0; font-size: 0.8em; color: var(--text-color-subdued, #9ca3af); font-weight: 600; text-transform: uppercase;">Active Deployments</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px;">{ff_chips}</div>
             </div>
             <div>
-                <p style="margin: 0 0 4px 0; font-size: 0.8em; color: #6b7280; font-weight: 600; text-transform: uppercase;">Temporal Window</p>
-                <span style="background-color: #f3f4f6; color: #374151; padding: 4px 10px; border-radius: 6px; font-family: monospace; font-size: 0.9em; font-weight: 600;">⏱{decision.window.upper()}</span>
+                <p style="margin: 0 0 4px 0; font-size: 0.8em; color: var(--text-color-subdued, #9ca3af); font-weight: 600; text-transform: uppercase;">Temporal Window</p>
+                <span style="background-color: var(--neutral-100, #374151); color: var(--body-text-color, #f3f4f6); padding: 4px 10px; border-radius: 6px; font-family: monospace; font-size: 0.9em; font-weight: 600;">⏱️ {decision.window.upper()}</span>
             </div>
             <div style="grid-column: span 2;">
-                <p style="margin: 0 0 4px 0; font-size: 0.8em; color: #6b7280; font-weight: 600; text-transform: uppercase;">Decided Target Horizon</p>
-                <div style="font-family: monospace; color: #111827; font-size: 0.95em; background: #fafafa; padding: 8px; border-radius: 6px; border: 1px dashed #e5e7eb;">
+                <p style="margin: 0 0 4px 0; font-size: 0.8em; color: var(--text-color-subdued, #9ca3af); font-weight: 600; text-transform: uppercase;">Decided Target Horizon</p>
+                <div style="font-family: monospace; color: var(--body-text-color, #f3f4f6); font-size: 0.95em; background: var(--input-background-fill, #111827); padding: 8px; border-radius: 6px; border: 1px dashed var(--border-color-primary, #374151);">
                     {decision.time}
                 </div>
             </div>
         </div>
 
-        <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
-            <p style="margin: 0 0 8px 0; font-size: 0.8em; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Telemetry Performance Metrics</p>
-            <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #475569;">
-                <div>Routing: <strong>{fmt_lat(route_lat)}</strong></div>
-                <div>Retrieval: <strong>{fmt_lat(fetch_lat)}</strong></div>
-                <div>Synthesis: <strong>{fmt_lat(gen_lat)}</strong></div>
+        <div style="background: var(--input-background-fill, #111827); border-radius: 8px; padding: 12px; border: 1px solid var(--border-color-secondary, #4b5563);">
+            <p style="margin: 0 0 8px 0; font-size: 0.8em; color: var(--text-color-subdued, #9ca3af); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Telemetry Performance Metrics</p>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: var(--text-color-subdued, #9ca3af);">
+                <div>Routing: <strong style="color: var(--body-text-color);">{fmt_lat(route_lat)}</strong></div>
+                <div>Retrieval: <strong style="color: var(--body-text-color);">{fmt_lat(fetch_lat)}</strong></div>
+                <div>Synthesis: <strong style="color: var(--body-text-color);">{fmt_lat(gen_lat)}</strong></div>
             </div>
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 0.9em; color: #1e293b;">Total Loop Latency:</span>
-                <span style="font-size: 1.1em; font-weight: 800; color: #0f172a;">{fmt_lat(total_lat)}</span>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color-primary, #374151); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.9em; color: var(--body-text-color, #f3f4f6);">Total Loop Latency:</span>
+                <span style="font-size: 1.1em; font-weight: 800; color: var(--block-title-text-color, #ffffff);">{fmt_lat(total_lat)}</span>
             </div>
         </div>
     </div>
     """
     return html_content
-
 
 # --- UI Execution Controller (Tab 1 Q&A) ---
 
@@ -230,7 +290,7 @@ async def process_query_for_demo(user_query: str):
 
 def build_interface():
     with gr.Blocks(title="AdaptiveRAG Command Center", theme=gr.themes.Soft()) as demo:
-        gr.Markdown("# 🚒 Captain-Firefighter Control Room Dashboard")
+        gr.Markdown("# Captain-Firefighter Control Room Dashboard")
         
         with gr.Tabs():
             # TAB 1: COMMAND AND CONTROL
@@ -300,6 +360,49 @@ def build_interface():
                     fn=fetch_all_firefighters,
                     inputs=None,
                     outputs=[live_table_1, live_table_2, live_table_3]
+                )
+            # TAB 3: CAPTAIN MEMORY ENGINE
+            with gr.Tab("Captain Memory Engine"):
+                gr.Markdown("### Live Cognitive Memory States")
+                gr.Markdown("Inspect how the Captain compresses conversation details, discards redundancy, and maintains individual firefighter histories.")
+                
+                with gr.Row():
+                    # Left Side: Long-term Rolling Summary
+                    with gr.Column(scale=1):
+                        gr.Markdown("#### Rolling Master History (`data_summary`)")
+                        memory_time_badge = gr.Markdown("**Last Consolidated:** Never")
+                        master_summary_box = gr.Textbox(
+                            label="Consolidated Context (Replaces Old Summary)",
+                            lines=6,
+                            interactive=False
+                        )
+                        
+                    # Right Side: Active Short-term Memory Buffer
+                    with gr.Column(scale=1):
+                        gr.Markdown("#### Active Conversation Buffer (Will compress at MAX_TURNS)")
+                        conversation_buffer_table = gr.Dataframe(
+                            headers=["User Query", "Captain Agent Response"],
+                            interactive=False,
+                            wrap=True
+                        )
+                
+                # Bottom Row: Firefighter Profiles
+                gr.Markdown("#### Persistent Firefighter Status Summaries (`firefighter_summary`)")
+                ff_profiles_html = gr.HTML()
+                
+                # Update loop for Tab 3
+                # Reuses the same 2-second timer you set up for Tab 2
+                timer.tick(
+                    fn=fetch_memory_state,
+                    inputs=None,
+                    outputs=[master_summary_box, ff_profiles_html, conversation_buffer_table, memory_time_badge]
+                )
+                
+                # Load immediately when starting the app
+                demo.load(
+                    fn=fetch_memory_state,
+                    inputs=None,
+                    outputs=[master_summary_box, ff_profiles_html, conversation_buffer_table, memory_time_badge]
                 )
                 
     return demo
