@@ -17,18 +17,20 @@ DB_PATHS = {
     "Firefighter 3": "data/vitals3.db"
 }
 def fetch_memory_state():
-    """Reads live memory structures directly from the running captain.memory."""
-    # 1. Master Data Summary
+    """Reads live memory structures directly from the running captain.memory 
+    and formats them cleanly for the Gradio UI."""
+    
+    # 1. Fetch & Format Long-Term Master Data Summary
     data_summary = getattr(captain.memory, "data_summary", "No consolidated memory yet.")
     
-    # Last updated timestamp formatting
+    # Format the last updated timestamp
     last_updated = getattr(captain.memory, "last_updated", "Never")
     if hasattr(last_updated, "strftime"):
         last_updated_str = f"Last Consolidated: {last_updated.strftime('%Y-%m-%d %H:%M:%S')}"
     else:
         last_updated_str = f"Last Consolidated: {last_updated}"
         
-    # 2. Firefighter Summaries
+    # 2. Fetch & Format Firefighter Long-Term Status Profiles
     ff_summary = getattr(captain.memory, "firefighter_summary", {})
     if isinstance(ff_summary, str):
         try:
@@ -43,31 +45,41 @@ def fetch_memory_state():
         color = colors[idx]
         ff_html += f"""
         <div style="
-            background: #ffffff; 
-            border: 1px solid #e2e8f0; 
+            background: var(--block-background-fill, #1f2937); 
+            border: 1px solid var(--border-color-primary, #374151); 
             border-radius: 8px; 
             padding: 14px; 
             border-top: 4px solid {color};
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            color: var(--body-text-color, #f3f4f6);
         ">
-            <strong style="color: {color}; font-size: 0.95em; display: flex; align-items: center; gap: 6px;">Firefighter {idx} Memory Profile</strong>
-            <p style="margin: 8px 0 0 0; font-size: 0.88em; color: #475569; line-height: 1.4;">{status}</p>
+            <strong style="color: {color}; font-size: 0.95em; display: flex; align-items: center; gap: 6px;">🚒 Firefighter {idx} Memory Profile</strong>
+            <p style="margin: 8px 0 0 0; font-size: 0.88em; color: var(--text-color-subdued, #9ca3af); line-height: 1.4;">{status}</p>
         </div>
         """
     ff_html += "</div>"
     
-    # 3. Short-term Conversation turns
+    # 3. UNPACK Short-Term Conversation Buffer safely
     conversation = getattr(captain.memory, "conversation", [])
     conv_rows = []
+    
     for turn in conversation:
         if isinstance(turn, dict):
+            # Unpack key-value pairs (e.g., {"query": "response"})
             for q, ans in turn.items():
+                # Filter out those accidental terminal inputs if they exist
+                if q.strip() in ("1", "2", "3") and ans == "[object Object]":
+                    continue
                 conv_rows.append([q, ans])
                 
+    # If we have clean history, put it in a DataFrame; otherwise, show an empty state
     if conv_rows:
         conv_df = pd.DataFrame(conv_rows, columns=["User Query", "Captain Agent Response"])
     else:
-        conv_df = pd.DataFrame([["Buffer Empty", "Active conversation turns have not reached compression limit."]], columns=["User Query", "Captain Agent Response"])
+        conv_df = pd.DataFrame(
+            [["No active queries", "Type in Tab 1 to fill the live memory buffer."]], 
+            columns=["User Query", "Captain Agent Response"]
+        )
         
     return data_summary, ff_html, conv_df, last_updated_str
 
