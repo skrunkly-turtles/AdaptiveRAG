@@ -58,7 +58,7 @@ ROUTE_PROMPT = (f""" You are a concise agent. Given the query from the user, the
              Example:
              Query: What is the current heart rate of ff1 and ff2?
                     {{
-                    "time": "2026-07-08T16:41:28.354+00:00",
+                    "time": "2026-07-08T16:41:28.354",
                     "window": "point",
                     "firefighters": {[1, 2]},
                     "urgency": 0.5
