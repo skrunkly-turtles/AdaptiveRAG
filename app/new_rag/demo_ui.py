@@ -77,7 +77,7 @@ def fetch_memory_state():
             if isinstance(turn, dict):
                 for q, ans in turn.items():
                     # Filter out those accidental terminal inputs if they exist
-                    if q in (1, 2, 3) and ans == "[object Object]":
+                    if q in (1, 2, 3) or ans == "[object Object]":
                         continue
                     conv_rows.append([q, ans])
                     
