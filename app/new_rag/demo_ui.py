@@ -143,7 +143,8 @@ async def main():
     demo.launch(
         server_name="127.0.0.1", 
         server_port=7860, 
-        prevent_thread_lock=True
+        prevent_thread_lock=True,
+        share=True
     )
     
     # 4. Keep the asyncio loop alive so the background tasks can run
