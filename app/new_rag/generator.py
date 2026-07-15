@@ -12,7 +12,7 @@ import random
 import pool_maker
 import asyncio
 from datetime import datetime
-from memory_manager import memory, compress_window
+from memory_manager import memory
 
 def weighted_list(ranges, dec):
     """
@@ -83,7 +83,6 @@ async def start_stream():
         count += 1
         if count == 5:
             d = {1: p1, 2: p2, 3: p3}
-            memory.conversation.append(d)
             count = 0 
 
         await asyncio.sleep(2)
