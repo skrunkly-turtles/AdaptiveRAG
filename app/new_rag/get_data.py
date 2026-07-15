@@ -78,4 +78,3 @@ async def get_data(report: Report, ff: int) -> dict[str, list[Any]]:
                     result[re] = [row[0] for row in rows]
         return result 
 
-

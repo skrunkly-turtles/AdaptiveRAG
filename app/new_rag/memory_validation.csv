@@ -1,218 +1,30 @@
 last_updated,data_summary,conversation_json,firefighter_summary_json
-2026-07-09 11:52:36,"To process the new conversation and integrate it into the existing data summary, I'll perform the following steps:
-
-1. Extract relevant information from each entry in `new_conversation`.
-2. Filter out small talk, repetitive, or irrelevant entries.
-3. Update `data_summary` with the extracted and filtered information.
-
-Here's the code to achieve this:
-```python
-import json
-
-# Define a function to process the new conversation
-def process_new_conversation(new_conversation):
-    # Initialize an empty dictionary to store the processed data
-    data_summary = {}
-
-    # Iterate over each entry in the new conversation
-    for key, value in new_conversation.items():
-        # Extract relevant information from the entry (e.g., time, hr, o2, elevation, temp)
-        info = {
-            'time': value['time'],
-            'hr': value['hr'],
-            'o2': value['o2'],
-            'elevation': value['elevation'],
-            'temp': value['temp']
-        }
-
-        # Filter out small talk or irrelevant entries
-        if key == 1:
-            data_summary[key] = info
-        elif key in (2, 3):
-            # Add the entry to an existing key in data_summary
-            for k, v in data_summary.items():
-                if all([v.get(x) == info[x] for x in info]):
-                    data_summary[k].update(info)
-                    break
-            else:
-                data_summary[key] = info
-
-    return data_summary
-
-# Process the new conversation and update data_summary
-new_conversation = [
-    # ... (same as before)
-]
-
-data_summary = process_new_conversation(new_conversation)
-
-print(json.dumps(data_summary, indent=4))
-```
-Running this code will produce the following output:
-```json
-{
-    ""1"": {
-        ""time"": ""2026-07-09T11:51:06.040170"",
-        ""hr"": 44,
-        ""o2"": 97.04,
-        ""elevation"": -3.0,
-        ""temp"": 19.32
-    },
-    ""2"": {
-        ""time"": ""2026-07-09T11:51:16.506430"",
-        ""hr"": 65,
-        ""o2"": 99.58,
-        ""elevation"": -9.24,
-        ""temp"": 16.06
-    },
-    ""3"": {
-        ""time"": ""2026-07-09T11:51:26.853695"",
-        ""hr"": 73,
-        ""o2"": 98.61,
-        ""elevation"": -16.33,
-        ""temp"": 14.49
-    }
-}
-```
-Note that I've assumed a fixed format for the input data, where each entry is an object with specific keys (e.g., `time`, `hr`, etc.). If your data has a different structure, you may need to modify the code accordingly.
-
-Also, I've used JSON as the output format, but you can adjust this to fit your needs.","[
+2026-07-15 11:48:15,No prior history yet. See cache.,"[
   {
     ""1"": {
-      ""time"": ""2026-07-09T11:51:37.105496"",
-      ""hr"": 102,
-      ""o2"": 98.34,
-      ""elevation"": 5.03,
-      ""temp"": 10.63
+      ""time"": ""2026-07-15T11:48:26.492602"",
+      ""hr"": 170,
+      ""o2"": 96.48,
+      ""elevation"": -8.26,
+      ""temp"": 27.74
     },
     ""2"": {
-      ""time"": ""2026-07-09T11:51:37.105593"",
-      ""hr"": 133,
-      ""o2"": 95.04,
-      ""elevation"": -0.68,
-      ""temp"": 735.96
+      ""time"": ""2026-07-15T11:48:26.492905"",
+      ""hr"": 57,
+      ""o2"": 99.31,
+      ""elevation"": 3.4,
+      ""temp"": 17.58
     },
     ""3"": {
-      ""time"": ""2026-07-09T11:51:37.105610"",
-      ""hr"": 70,
-      ""o2"": 95.65,
-      ""elevation"": -8.75,
-      ""temp"": 12.96
-    }
-  },
-  {
-    ""1"": {
-      ""time"": ""2026-07-09T11:51:47.340093"",
-      ""hr"": 108,
-      ""o2"": 90.49,
-      ""elevation"": 3.23,
-      ""temp"": 15.98
-    },
-    ""2"": {
-      ""time"": ""2026-07-09T11:51:47.340194"",
-      ""hr"": 132,
-      ""o2"": 98.34,
-      ""elevation"": -2.61,
-      ""temp"": 19.47
-    },
-    ""3"": {
-      ""time"": ""2026-07-09T11:51:47.340210"",
-      ""hr"": 190,
-      ""o2"": 99.27,
-      ""elevation"": -6.36,
-      ""temp"": 18.06
-    }
-  },
-  {
-    ""1"": {
-      ""time"": ""2026-07-09T11:51:57.521391"",
-      ""hr"": 70,
-      ""o2"": 99.63,
-      ""elevation"": -6.09,
-      ""temp"": 11.29
-    },
-    ""2"": {
-      ""time"": ""2026-07-09T11:51:57.521494"",
-      ""hr"": 123,
-      ""o2"": 95.35,
-      ""elevation"": 38.02,
-      ""temp"": 19.99
-    },
-    ""3"": {
-      ""time"": ""2026-07-09T11:51:57.521511"",
-      ""hr"": 122,
-      ""o2"": 99.06,
-      ""elevation"": -1.41,
-      ""temp"": 726.4
-    }
-  },
-  {
-    ""1"": {
-      ""time"": ""2026-07-09T11:52:07.780446"",
-      ""hr"": 68,
-      ""o2"": 97.51,
-      ""elevation"": -8.08,
-      ""temp"": 20.16
-    },
-    ""2"": {
-      ""time"": ""2026-07-09T11:52:07.780564"",
-      ""hr"": 65,
-      ""o2"": 99.1,
-      ""elevation"": -0.45,
-      ""temp"": 21.45
-    },
-    ""3"": {
-      ""time"": ""2026-07-09T11:52:07.780583"",
-      ""hr"": 119,
-      ""o2"": 96.89,
-      ""elevation"": 17.46,
-      ""temp"": 90.1
-    }
-  },
-  {
-    ""1"": {
-      ""time"": ""2026-07-09T11:52:18.182758"",
-      ""hr"": 85,
-      ""o2"": 97.76,
-      ""elevation"": 4.72,
-      ""temp"": 92.04
-    },
-    ""2"": {
-      ""time"": ""2026-07-09T11:52:18.182894"",
-      ""hr"": 175,
-      ""o2"": 95.79,
-      ""elevation"": 5.38,
-      ""temp"": 172.36
-    },
-    ""3"": {
-      ""time"": ""2026-07-09T11:52:18.182917"",
-      ""hr"": 111,
-      ""o2"": 94.91,
-      ""elevation"": -6.71,
-      ""temp"": 15.9
-    }
-  },
-  {
-    ""1"": {
-      ""time"": ""2026-07-09T11:52:28.445906"",
-      ""hr"": 50,
-      ""o2"": 97.77,
-      ""elevation"": 33.96,
-      ""temp"": 21.73
-    },
-    ""2"": {
-      ""time"": ""2026-07-09T11:52:28.446058"",
-      ""hr"": 161,
-      ""o2"": 99.75,
-      ""elevation"": -3.29,
-      ""temp"": 68.27
-    },
-    ""3"": {
-      ""time"": ""2026-07-09T11:52:28.446079"",
-      ""hr"": 128,
-      ""o2"": 93.81,
-      ""elevation"": 5.7,
-      ""temp"": 27.83
+      ""time"": ""2026-07-15T11:48:26.492988"",
+      ""hr"": 142,
+      ""o2"": 99.58,
+      ""elevation"": 3.14,
+      ""temp"": 19.85
     }
   }
-]","""{\n  \""1\"": \""Updated status based on new data\"",\n  \""2\"": \""Updated status based on new data\"",\n  \""3\"": \""Updated status based on new data\""\n}"""
+]","{
+  ""1"": ""Status: None"",
+  ""2"": ""Status: None"",
+  ""3"": ""Status: None""
+}"
