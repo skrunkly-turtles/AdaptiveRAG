@@ -33,7 +33,7 @@ ROUTE_PROMPT = (f""" You are a concise agent. Given the query from the user, the
               return a response ONLY and EXACTLY as the json format {CapDecision} is. 
               
               CRITICAL RULES: 
-              (1) Use the query, the data summar, and firefighters summary provided in the prompt.
+              (1) Use the query, the data summary, and firefighters summary provided in the prompt.
               (2) Return ONLY the json schema outlined.
               (3) The list of words each ID is mapped to in firefighters MUST BE verbs or nous found in the query. 
                     If all words are important to the firefighter, map their ID to an empty list.
@@ -47,7 +47,8 @@ ROUTE_PROMPT = (f""" You are a concise agent. Given the query from the user, the
 
               Here is what each attribute means:
               
-              time: ISO 8601 string (YYYY-MM-DD HH:MM:SS). If no time is mentioned, provide the best logical guess based on the current system time.
+              time: ISO 8601 string (YYYY-MM-DD HH:MM:SS). If no time is mentioned, provide the best logical guess based on the current system time 
+                    MOST IMPORTANTLY hour, minute, and seconds. Use {datetime.now()} as a reference point. 
               window: A string in {WINDOW} where 'point' is ONLY the data at <time>, 'short' is a SHORT window
                      of time around <time>, and 'long' requires a longer context window.
              firefighters: A list of integers corresponding to firefighter IDs in {FIREFIGHTER_NAMES} ONLY which are 
