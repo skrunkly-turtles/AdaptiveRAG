@@ -151,11 +151,11 @@ def build_interface():
                 with gr.Row():
                     with gr.Column(scale=1):
                         query_input = gr.Textbox(
-                            label="Ask Jesslyn (e.g., 'Compare the vitals of ff1 and ff2')", 
+                            label="Question", 
                             placeholder="Type your question here...",
                             lines=2
                         )
-                        submit_btn = gr.Button("Transmit Query to Captain", variant="primary")
+                        submit_btn = gr.Button("Ask", variant="primary")
                         
                         output_answer = gr.Textbox(
                             label="Captain's Dispatch Response", 
@@ -165,10 +165,9 @@ def build_interface():
                         )
                         
                     with gr.Column(scale=1):
-                        system_timer = gr.Label(label="Total Roundtrip Processing Latency")
+                        system_timer = gr.Label(label="Total Time Taken")
                         telemetry_log = gr.Textbox(
                             label="Live Pipeline Telemetry & Routing Log", 
-                            placeholder="Intermediate decisions, data shapes, and per-step latencies...",
                             lines=13,
                             interactive=False
                         )
@@ -182,7 +181,7 @@ def build_interface():
 
             # TAB 2: LIVE TELEMETRY STREAM
             with gr.Tab("Active Telemetry Live Feed"):
-                gr.Markdown("### 📡 Real-Time Database Stream (vitals.db, vitals2.db, vitals3.db)")
+                gr.Markdown("### Real-Time Database Stream (vitals.db, vitals2.db, vitals3.db)")
                 gr.Markdown("This table automatically polls your databases every 2 seconds using a clean backend timer.")
                 
                 # Dynamic Gradio Dataframe component
@@ -225,10 +224,11 @@ async def main():
     demo.launch(
         server_name="127.0.0.1", 
         server_port=7860, 
-        prevent_thread_lock=True
+        prevent_thread_lock=True,
+        share=True
     )
     
-    print("Dashboard is live at http://127.0.0.1:7860 🚒")
+    print("Dashboard is live at http://127.0.0.1:7860")
     while True:
         await asyncio.sleep(1)
 
@@ -237,4 +237,4 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nShutting down gracefully...")
+        print("\nShutting down...")
