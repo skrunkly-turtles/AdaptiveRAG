@@ -27,13 +27,12 @@ def fetch_latest_vitals_from_db():
         resolved_path = path if os.path.exists(path) else os.path.join("app", "new_rag", path)
         
         if not os.path.exists(resolved_path):
-            # Fallback placeholder if DB isn't generated yet
-            all_data.append({
+            all_data.append(pd.DataFrame([{
                 "Firefighter": ff_name, 
                 "Timestamp": "N/A", 
                 "Heart Rate": "No DB found yet", 
                 "Temperature": "N/A"
-            })
+            }]))
             continue
             
         try:
@@ -184,7 +183,7 @@ def build_interface():
             # TAB 2: LIVE TELEMETRY STREAM
             with gr.Tab("Active Telemetry Live Feed"):
                 gr.Markdown("### 📡 Real-Time Database Stream (vitals.db, vitals2.db, vitals3.db)")
-                gr.Markdown("This table polls your physical SQLite databases every 2 seconds to show incoming telemetry updates.")
+                gr.Markdown("This table automatically polls your databases every 2 seconds using a clean backend timer.")
                 
                 # Dynamic Gradio Dataframe component
                 live_table = gr.Dataframe(
@@ -193,12 +192,21 @@ def build_interface():
                     wrap=True
                 )
                 
-                # Use Gradio's automatic stream loop to refresh this table every 2 seconds
+                # MODERN REMEDY: Declare a timer component that ticks every 2.0 seconds
+                timer = gr.Timer(value=2.0, active=True)
+                
+                # Hook the table update to the timer's tick event
+                timer.tick(
+                    fn=fetch_latest_vitals_from_db,
+                    inputs=None,
+                    outputs=[live_table]
+                )
+                
+                # Also load it instantly the moment page is opened
                 demo.load(
                     fn=fetch_latest_vitals_from_db,
                     inputs=None,
-                    outputs=[live_table],
-                    every=2.0
+                    outputs=[live_table]
                 )
                 
     return demo
