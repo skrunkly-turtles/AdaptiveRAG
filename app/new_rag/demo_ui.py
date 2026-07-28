@@ -399,7 +399,7 @@ def build_interface():
                 gr.Markdown("Inspect how the Captain compresses conversation details, discards redundancy, and maintains individual firefighter histories.")
                 
                 with gr.Row():
-                    # Left Side: Long-term Rolling Summary
+                    # Long-term Rolling Summary
                     with gr.Column(scale=1):
                         gr.Markdown("#### Rolling Master History (`data_summary`)")
                         memory_time_badge = gr.Markdown("**Last Consolidated:** Never")
@@ -409,9 +409,9 @@ def build_interface():
                             interactive=False
                         )
                         
-                    # Right Side: Active Short-term Memory Buffer
+                    # Active Short-term Memory Buffer
                     with gr.Column(scale=1):
-                        gr.Markdown("#### Active Conversation Buffer (Will compress at MAX_TURNS)")
+                        gr.Markdown("#### Conversation History (Will compress at MAX_TURNS)")
                         conversation_buffer_table = gr.Dataframe(
                             headers=["User Query", "Captain Agent Response"],
                             interactive=False,
@@ -456,8 +456,8 @@ async def main():
         prevent_thread_lock=True,
         share=True
     )
-    
-    print("Dashboard is live at http://127.0.0.1:7860")
+
+
     while True:
         await asyncio.sleep(1)
 

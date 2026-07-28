@@ -27,19 +27,18 @@ memory = CapMemory(
     }
 )
 
-SUMMARY_PROMPT = ("""You are a precise, memory management process. Compress the new incoming interactions, denoted
-                  as new_conversation into the existing master rolling history, denoted data_summary.
+SUMMARY_PROMPT = ("""You are a precise, memory management process. Read the current environment data and past trends to
+                    compress the environment into a concise description of what is happening.
                   RULES:
                   - Preserve all crucial points, data anomalies, and overarching trends. 
                   - Drop all small talk, repetitive and monotone entries, or irrelevant entries. 
                   - Keep summary under 3 sentences.
                   - Learn from the old summary. This new summary will REPLACE the old summary with its important notes AND new data.
-
                   """)
 
 FIREFIGHTER_PROMPT = ("""
                       [INPUT GIVEN]
-                      New Conversation History: new_conversation
+                      New Warnings from the Captain: new_conversation
                       Current Firefighter Summaries: Existing ff summaries
                       Incoming Firefighter Updates: New ff summaries
                       
@@ -68,8 +67,8 @@ async def compress_window() -> None:
         system= SUMMARY_PROMPT,
         prompt= f"""
             data_summary: {memory.data_summary} \n
-            ff1_data_cache: {memory.data_cache} \n
-            new_conversation: {memory.conversation[-MAX_TURNS:]}\n 
+            past warnings: {memory.data_cache} \n
+            firefighter_summaries: {memory.firefighter_summary}\n 
         """
     )
         # Update the memory!
@@ -112,7 +111,7 @@ async def update_ff_summaries() -> None:
         model='qwen2.5:14b',
         system= FIREFIGHTER_PROMPT,
         prompt= f"""
-            new_conversation: {memory.conversation[-MAX_TURNS:]}\n 
+            new_warnings: {memory.data_cache}\n 
             Existing ff summaries: {memory.firefighter_summary} \n
             New ff summaries: {ff_summaries}
         """,

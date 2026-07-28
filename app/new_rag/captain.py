@@ -5,8 +5,10 @@ This file represents the Captain, which oversees all the firefighters. It is res
 (3) Sending the query to the correct firefighters, determining TIME, and urgency.
 """
 
+# HI THIS IS CURRENTLY UNDER CONSTRUCTION OMG OMG I'M DYING
+
 import asyncio
-from models import Query, CapDecision, WINDOW
+from models import Query, CapDecision, Analysis, Adjust, WINDOW
 import generator
 import ollama
 from firefighters import ff1, ff2, ff3
@@ -16,15 +18,36 @@ from memory_manager import summarize, memory, LATEST_DATA
 
 FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3}
 
+# These are the sanity checks on the adaptation. It ensures that the monitoring state is not changed
+# too drastically in one loop.
+GUARDRAILS = {
+    "max_change": 10,
+    "min_interval": 3,
+    "max_interval": 45
+}
+
+# The three states that the result of a summary is allowed to give. 
+THRESHOLD = ["NORMAL", "WARNING", "DANGER"]
+
 client = ollama.AsyncClient()
 
 # The max number of tokens that can be used in the summary!
 MAX_SUMMARY = 2000
 
+# This is the prompt summary for the monitoring of the general firefighters :D
 
-SYS_PROMPT = (f""" You are a precise and concise agent. 
-              Given the query, the firefighters' data, and the overall data, answer the query without any filler words and with as few tokens as possible. 
-              Use the conversation history, formatted question: answer, to contextualize the current question as needed.
+SYS_PROMPT = (f""" You are an agent monitoring the general state of an emergency scene. 
+              Given the reports from each firefighter in the prompt, return a formatted JSON file EXACTLY as {Analysis}.
+
+              CRITICAL RULES:
+              (1) Use each report AND the general summary. 
+              (2) Return ONLY the json schema outlined.
+              
+              Here is what each attribute means:
+              threshold: the general state is in {THRESHOLD}, where "NORMAL" indicates minimal to no concerns in the environment, "WARNING" 
+                            indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters
+                next_loop: when should we receive ask for another general summary? More unstable states deign closer monitoring
+                adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts. 
 """)
 
 # This is the routing prompt to route the agents

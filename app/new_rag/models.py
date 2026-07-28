@@ -22,6 +22,22 @@ class Answer(BaseModel):
     answer: str # The answer yay
     confidence: float
 
+# The loop that determines if action needs to be taken after every summary
+class Analysis(BaseModel):
+    """
+    The report that is evaluated every time a report or summary from the firefighters come in.
+    """
+    threshold: str # must be chosen from one of three states: NORMAL, WARNING, ALERT
+    next_loop: int # When we need the next summary to be made!
+    adjust_ffs: list[str] # A list of all the firefighters that need their prompts adjusted!
+
+class Adjust(BaseModel):
+    """
+    If the Captain has deemed these firefighters in need of a change, then this is where we do that!
+    """
+    ff_id: str # The ID of the firefighter yay
+    attention: list[str] # Specific aspects the firefighter should pay attention to
+
 
 class Report(BaseModel):
     """
