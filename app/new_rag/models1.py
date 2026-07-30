@@ -50,7 +50,7 @@ class Adjust(BaseModel):
     """
     ff_id: str # The ID of the firefighter yay
     attention: list[str] # Specific aspects the firefighter should pay attention to
-    det_numbers: dict[str, Any] # A dictionary of the deterministic triggers that need changing.  
+    det_numbers: dict[str, list[int]] # A dictionary of the deterministic triggers that need changing.  
 
 class Alert(BaseModel):
     """
@@ -80,3 +80,12 @@ class Plan(BaseModel):
     warning: str # The short description of what is happenin
     action: str # Detailed description of what each firefighter should do
     data: list[str] # A list of supporting data!
+
+# Models for the Firefighters
+
+class Warn(BaseModel):
+    """
+    The formatted warning sent from the firefighter to the Captain when a deterministic warning is raised
+    """
+    type: dict[str, int] # The name of the data that is raised mapped to the data value
+    warn: str # A short description of what is wrong

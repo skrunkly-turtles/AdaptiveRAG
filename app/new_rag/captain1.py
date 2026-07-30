@@ -9,11 +9,15 @@ import asyncio
 from models1 import Analysis, Adjust, CACHE_CAP
 import generator
 import ollama
-from firefighters import ff1, ff2, ff3
+from firefighters import ff1, ff2, ff3, ffc
 from datetime import datetime
 from typing import Any
 from memory_manager import summarize, memory, LATEST_DATA
 from planner import make_plan
+from comms import warning_queue
+
+# The max amount of tokens allowed to generate in a response
+MAX_TOKENS = 200
 
 # The amount of time for each cycle
 CYCLE = 10
@@ -40,7 +44,7 @@ WARN_PROMPT = f"""You are a highly precise analytical agent.
                 [OUTPUTS in JSON Schema]
                 threshold: the general state is in {THRESHOLD}, where "NORMAL" indicates minimal to no concerns in the environment, "WARNING" 
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
-                description: A description of 1-3 sentences outlining why this threshold was chosen. 
+                desc: A description of 1-3 sentences outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
                 INSERT EXAMPLE HERE PLEASE
@@ -60,6 +64,22 @@ ADJUST_FFS = f"""You are a precise routing agent.
                             a given category IF its trigger value needs changing. 
             """
 
+# PLEASE FINISH THIS PROMPT
+DET_WARN = f"""You are a concise agent who has received a deterministic flag which requires urgent attention. 
+                Assess the current warning and return ONLY and EXACTLY the JSON: {Analysis} format. 
+
+                [INPUTS]
+                Firefighter in Danger: The ID of the firefighter that has sent the alert
+                Critical Data: A dictionary of the category of data mapped to the value that triggered the warning
+                Firefighter Summaries: A description of what is happening to each firefighter
+                Environment Summary: The overall description of the environment. 
+
+                [OUTPUTS IN JSON SCHEMA]
+                threshold: the general state is in {THRESHOLD}, where "NORMAL" indicates minimal to no concerns in the environment, "WARNING" 
+                            indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
+                desc: A description of 1-3 sentences outlining why this threshold was chosen. 
+                adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
+"""
 
 client = ollama.AsyncClient()
 
@@ -81,8 +101,51 @@ async def adjust_ffs(analysis: Analysis) -> None:
         r = Adjust.model_validate_json(response['response'])
 
         # SENDING TO THE FIREFIGHTER. I've decided that the new function is called adjust
-        FIREFIGHTER_NAMES[r.ff_id].adjust(r)
-        
+        await FIREFIGHTER_NAMES[r.ff_id].adjust(r, CYCLE)
+
+# When we receive deterministic warnings from the firefighters, this function is called. 
+
+async def receive_warn() -> None:
+    """
+    This function wakes up only when there is a deterministic trigger from the firefighters. 
+    It will assess the situation similar to is_warning() and make changes accordingly.
+    """
+    # Ok when it is called, it needs to first get the ID and the corresponding warning from the firefighter
+    while True:
+        ff_id, warning = await warning_queue.get()
+        try:
+            response = await asyncio.wait_for(
+                client.generate(
+                    model='qwen2.5:14b',
+                    system = DET_WARN,
+                    prompt = f"""
+                            Firefighter in Danger: {ff_id} \n
+                            Critical Data: {warning.type} \n
+                            Firefighter Summaries: {memory.firefighter_summary} \n
+                            Environment Summary: {memory.data_summary}
+                            """,
+                    options={
+                        'num_predict': MAX_TOKENS,
+                        'temperature': 0.2 # A tighter temp means that it rambles less
+                    }
+                ),
+                timeout=10 # The max amount that they await for
+            )
+            r = Analysis.model_validate_json(response['response'])
+            await det_cycle(r)
+            if r.adjust_ffs:
+                    await adjust_ffs(r)
+            if r.threshold == "ALERT":
+                    # AHAHHA CALL THE PLANNER OKAY?
+                    make_plan(r)
+            await update_cache(r)
+
+        # If something doesn't work...
+        except asyncio.TimeoutError:
+            print(f"receive_warn timed out for ff {ff_id}")
+        except Exception as e:
+            print(f"receive_warn failed to process warning for ff {ff_id}: {e}")
+
 
 # What's up with this cycle? 
 async def is_warning() -> None:
@@ -99,6 +162,7 @@ async def is_warning() -> None:
         """,
     )
     r = Analysis.model_validate_json(response['response'])
+    await det_cycle(r)
 
     # Now we need to call all the actions depending on what the main model has decided.
     if r.adjust_ffs:
@@ -106,9 +170,8 @@ async def is_warning() -> None:
     if r.threshold == "ALERT":
         # AHAHHA CALL THE PLANNER OKAY?
         make_plan(r)
-        
+
     await update_cache(r)
-    await det_cycle(r)
 
 
 # Just updates the cache yay
@@ -121,6 +184,7 @@ async def update_cache(analysis: Analysis) -> None:
 
     if len(memory.data_cache) > CACHE_CAP:
         memory.data_cache.pop()
+
 
 # Deterministicly changes the cycle that monitors the whole thing yay
 async def det_cycle(analysis: Analysis) -> None:
@@ -150,6 +214,8 @@ async def main():
     await asyncio.gather(
         generator.start_stream(), # This makes the generator make data every two seconds.
         monitor(),
+        receive_warn(),
+        ffc.main()
     )
 
 
