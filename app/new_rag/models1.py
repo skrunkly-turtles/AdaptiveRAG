@@ -20,6 +20,10 @@ class Data(BaseModel):
     o2: float
     elevation: float
     temp: float
+    respiration: int
+    hrv: float
+    body_temp: float
+    gait: float
 
 # Models for the get_data 
 

@@ -28,18 +28,22 @@ def weighted_list(ranges, dec):
     return round(random.uniform(chosen_min, chosen_max), dec)
 
 # These are the distributions for the random generator
+
+# Heart Rate
 HEART_RATE_RANGES = [
     (50, 190, 0.95),
     (20, 50, 0.03),
     (190, 300, 0.02)
 ]
 
+# Blood oxygen
 OXYGEN_RANGES = [
     (95, 100, 0.91),
     (90, 95, 0.06),
     (80, 90, 0.03)
 ]
 
+# Elevation 
 ELEVATION_LEVELS = [
     (-10, 10, 0.85),
     (-20, -10, 0.05),
@@ -47,6 +51,7 @@ ELEVATION_LEVELS = [
     (25, 50, 0.04)
 ]
 
+# External Temperature
 TEMPERATURE = [
     (10, 30, 0.70),
     (30, 100, 0.1),
@@ -55,6 +60,34 @@ TEMPERATURE = [
     (900, 1500, 0.03)
 ]
 
+# Respiratory Rates
+RESPIRATION = [
+    (12, 24, 0.9),
+    (5, 11, 0.04),
+    (25, 35, 0.03),
+    (0, 4, 0.03)
+]
+
+# Heart Rate Variability
+HRV = [
+    (40, 110, 0.9),
+    (15, 39, 0.05),
+    (111, 200, 0.05)
+]
+
+# Uh internal temp yay
+BODY_TEMP = [
+    (36.5, 38, 0.9),
+    (25, 36, 0.04),
+    (38.1, 45, 0.06)
+]
+
+# The difference in the gait cadence 
+GAIT_DIFF = [
+    (0.0, 1.9, 0.9),
+    (1.91, 2.9, 0.06),
+    (3.0, 5.0, 0.04)
+]
 # This is the dictionary that will be returned!
 def data() -> dict:
     """
@@ -65,7 +98,11 @@ def data() -> dict:
         "hr": int(weighted_list(HEART_RATE_RANGES, 0)),
         "o2": weighted_list(OXYGEN_RANGES, 2),
         "elevation": weighted_list(ELEVATION_LEVELS, 2),
-        "temp": weighted_list(TEMPERATURE, 2)
+        "temp": weighted_list(TEMPERATURE, 2),
+        "respiration": weighted_list(RESPIRATION, 0),
+        "hrv": weighted_list(HRV, 2),
+        "body_temp": weighted_list(BODY_TEMP, 2),
+        "gait": weighted_list(GAIT_DIFF, 2)
     }
 
 

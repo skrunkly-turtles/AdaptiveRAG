@@ -5,12 +5,10 @@ It is all deterministic:
 (2) Pools specified for each category AND for each firefighter
 (3) A large file of summaries/trends/statistics for each firefighter
 """
-
-import asyncio
 import aiosqlite
 import os
 from datetime import datetime
-from models import Data
+from models1 import Data
 
 DB1_PATH = 'data/vitals.db'
 DB2_PATH = 'data/vitals2.db'
@@ -52,11 +50,15 @@ async def _init_db(db: aiosqlite.Connection) -> None:
     # 1. Consolidated table handles all metrics cleanly in single rows
     await db.execute("""
         CREATE TABLE IF NOT EXISTS all_logs (
-            time      TEXT,
-            hr        INTEGER,
-            o2        REAL,
-            elevation REAL,
-            temp      REAL
+            time        TEXT,
+            hr          INTEGER,
+            o2          REAL,
+            elevation   REAL,
+            temp        REAL,
+            respiration INTEGER,
+            hrv         REAL,
+            body_temp   REAL,
+            gait        REAL
         )
     """)
 
@@ -79,8 +81,8 @@ async def log_reading(db: aiosqlite.Connection, reading: Data) -> None:
     """Inserts the unified row into the database using an active connection."""
     time_str = reading.time.isoformat() if isinstance(reading.time, datetime) else str(reading.time)
     await db.execute(
-        "INSERT INTO all_logs (time, hr, o2, elevation, temp) VALUES (?, ?, ?, ?, ?)",
-        (time_str, reading.hr, reading.o2, reading.elevation, reading.temp)
+        "INSERT INTO all_logs (time, hr, o2, elevation, temp, respiration, hrv, body_temp, gait) VALUES (?, ?, ?, ?, ?)",
+        (time_str, reading.hr, reading.o2, reading.elevation, reading.temp, reading.respiration, reading.hrv, reading.body_temp, reading.gait)
     )
 
 async def calc_summaries(db: aiosqlite.Connection) -> None:
@@ -88,7 +90,7 @@ async def calc_summaries(db: aiosqlite.Connection) -> None:
     Computes updated statistics efficiently. SQLite handles count/avg/min/max, 
     and we pull a heavily optimized sub-query purely for calculating the median.
     """
-    for metric in ("hr", "o2", "elevation", "temp"):
+    for metric in ("hr", "o2", "elevation", "temp", "respiration", "hrv", "body_temp", "gait"):
         # 1. Let SQLite process the bulk heavy lifting instantly
         async with db.execute(f"""
             SELECT COUNT({metric}), AVG({metric}), MIN({metric}), MAX({metric}) 
@@ -127,7 +129,7 @@ async def calc_summaries(db: aiosqlite.Connection) -> None:
 
 async def process_incoming(data: dict, ff: int) -> None:
     """
-    Process incoming data packets smoothly every 2 seconds.
+    Process incoming data packets every 2 seconds.
     Uses a single connection to completely avoid write lock errors.
     """
     new_reading = Data(**data)

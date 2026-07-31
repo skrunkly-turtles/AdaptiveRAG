@@ -5,20 +5,33 @@ The new firefighters will need to do the following:
 (2) Retrieve information as needed
 (3) 
 """
+from datetime import datetime
 import sqlite3
 import asyncio
 import math
 import json
-from models1 import Adjust, Report, Warn, Data
+from models1 import Adjust, Warn, Data
 import ollama
 from typing import Any, Annotated
-from get_data import get_data
+from get_data1 import get_data
 from memory_manager import memory
 from comms import warning_queue
 
 # This should be EXACTLY what captain1 says
 CYCLE = 10
 
+TRENDLINE = {
+    "time": [],
+    "hr": [],
+    "o2": [],
+    "elevation":[],
+    "resp": [],
+    "temp": [],
+    "respiration": [],
+    "hrv": [],
+    "body_temp": [],
+    "gait": []
+}
 # The live data in an SQL file
 DB1_PATH = 'data/vitals.db'
 
@@ -33,13 +46,20 @@ DET_WARNINGS = {
     "hr": [40, 230],
     "o2": [93, 100],
     "resp": [12, 27],
-    "temp": [36, 39]
+    "temp": [36, 39],
+    "respiration": [12, 25],
+    "hrv": [40, 200],
+    "body_temp": [36.7, 37.2],
+    "gait": [0, 1.5]
 }
 
 SYS_PROMPT = f""" You are an analytical agent. 
-                    Given the 
-            """
+                    Given the summaries from the past cycle, the cache of summaries from the past history, 
+                    write a general report of the state and wellbeing of the worker. Keep in mind the deterministic
+                    warnings, which indicate the normal ranges for each cateogory. 
 
+                    You MUST keep your summary LESS THAN 4 sentences.
+            """
 
 async def adjust(params: Adjust, cycle: int) -> None:
     """
@@ -58,24 +78,27 @@ async def adjust(params: Adjust, cycle: int) -> None:
         DET_WARNINGS[w] = params.det_numbers[w]
     
 
-async def check_data() -> None:
+async def check_data():
     """
     reads the data by the LLM depending on the det_warnings, the attend_to
     """
+    global TRENDLINE
+
+    curr_data = get_data(FF_ID)
+
+    tl_data = {c: c["mean"] for c in curr_data}
+
+    trendline(tl_data)
+
     response = await client.generate(model='qwen2.5:14b',
             system = SYS_PROMPT,
             prompt=f"""Deterministic warnings: {DET_WARNINGS} \n
                         Pay special attention to: {ATTEND_TO} \n 
-                        Previous summarized state: {memory.firefighter_summary[FF_ID]}
+                        Current Data: {curr_data} \n 
+                        Trendline: {TRENDLINE}
             """,
         )
-    raise NotImplementedError
-
-async def make_report() -> Report:
-    """
-    Makes the report to send to get_data. This should be less complicated than before, honestly
-    """
-    raise NotImplementedError
+    return response['response']
 
 
 # This is a fat thing to read live data yay
@@ -124,7 +147,7 @@ async def read_live_data() -> None:
     finally:
         conn.close()
 
-
+# The functions that deal with the deterministic warnings
 async def check_det_warn(data:dict) -> Any:
     """
     Checks for deterministic alerts. Will send a warning to send_alert if needed
@@ -154,7 +177,34 @@ async def check_det_warn(data:dict) -> Any:
         new_warning = Warn(type=all_warns, warn=desc)
         await warning_queue.put((FF_ID, new_warning))
 
-        
+
+async def check_trend_warn(data:dict) -> Any:
+    """
+    Checks the deterministics trends? NOT SURE YET HEHE
+    """
+    raise NotImplementedError
+
+
+# This function creates the general trendline that the firefighter will have cached
+async def trendline(data: dict) -> None:
+    """
+    Makes a trendline based on the mean of the data collected every cycle for each category of data.
+    These trendlines will be outputted as a JSON in the following formatted dictionary:
+    
+    {
+        "time": [timestamp, timestamp1, timestamp2],
+        <category name>: [value, value1, value2],
+        <category name>: [value, value1, value2]
+    }
+    """
+    global TRENDLINE
+
+    for d, a in data.items():
+        TRENDLINE["time"] = datetime.now()
+        if d in TRENDLINE:
+            TRENDLINE[d].append(a)
+
+
 async def summaries() -> None:
     """
     Checks the data every CYCLE that is chosen

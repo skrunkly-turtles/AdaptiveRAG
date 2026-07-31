@@ -96,7 +96,8 @@ async def adjust_ffs(analysis: Analysis) -> None:
                     Firefighter ID: {ff} \n
                     Current Warning: {analysis.threshold} \n
                     Firefighter Summaries: {memory.firefighter_summary}
-                    """
+                    """,
+            format="json"
         )
         r = Adjust.model_validate_json(response['response'])
 
@@ -127,7 +128,8 @@ async def receive_warn() -> None:
                     options={
                         'num_predict': MAX_TOKENS,
                         'temperature': 0.2 # A tighter temp means that it rambles less
-                    }
+                    },
+                    format="json"
                 ),
                 timeout=10 # The max amount that they await for
             )
@@ -160,6 +162,7 @@ async def is_warning() -> None:
                     Past Warnings: {memory.data_cache} \n
                     Firefighter Summaries: {memory.firefighter_summary} \n
         """,
+        format="json"
     )
     r = Analysis.model_validate_json(response['response'])
     await det_cycle(r)
