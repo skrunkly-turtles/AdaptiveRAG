@@ -222,7 +222,6 @@ async def main() -> None:
     await asyncio.gather(
         read_live_data(),
         summaries(),
-        generator.start_stream()
     )
 
 if __name__ == "__main__":
