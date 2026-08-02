@@ -5,6 +5,7 @@ The new firefighters will need to do the following:
 (2) Retrieve information as needed
 (3) 
 """
+import generator
 from datetime import datetime
 import sqlite3
 import asyncio
@@ -25,7 +26,6 @@ TRENDLINE = {
     "hr": [],
     "o2": [],
     "elevation":[],
-    "resp": [],
     "temp": [],
     "respiration": [],
     "hrv": [],
@@ -45,7 +45,6 @@ ATTEND_TO = []
 DET_WARNINGS = {
     "hr": [40, 230],
     "o2": [93, 100],
-    "resp": [12, 27],
     "temp": [36, 39],
     "respiration": [12, 25],
     "hrv": [40, 200],
@@ -84,11 +83,11 @@ async def check_data():
     """
     global TRENDLINE
 
-    curr_data = get_data(FF_ID)
+    curr_data = await get_data(FF_ID)
 
-    tl_data = {c: c["mean"] for c in curr_data}
+    tl_data = {c: curr_data[c]["mean"] for c in curr_data}
 
-    trendline(tl_data)
+    await trendline(tl_data)
 
     response = await client.generate(model='qwen2.5:14b',
             system = SYS_PROMPT,
@@ -199,9 +198,9 @@ async def trendline(data: dict) -> None:
     """
     global TRENDLINE
 
+    TRENDLINE["time"].append(datetime.now())
     for d, a in data.items():
-        TRENDLINE["time"] = datetime.now()
-        if d in TRENDLINE:
+        if d.upper() in TRENDLINE:
             TRENDLINE[d].append(a)
 
 
@@ -218,7 +217,12 @@ async def main() -> None:
     """
     Runs the checking for deterministic alerts and also to make general summaries at the same time
     """
+    print("hi")
     await asyncio.gather(
         read_live_data(),
-        summaries()
+        summaries(),
+        generator.start_stream()
     )
+
+if __name__ == "__main__":
+    asyncio.run(main())
