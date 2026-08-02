@@ -81,7 +81,7 @@ async def log_reading(db: aiosqlite.Connection, reading: Data) -> None:
     """Inserts the unified row into the database using an active connection."""
     time_str = reading.time.isoformat() if isinstance(reading.time, datetime) else str(reading.time)
     await db.execute(
-        "INSERT INTO all_logs (time, hr, o2, elevation, temp, respiration, hrv, body_temp, gait) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO all_logs (time, hr, o2, elevation, temp, respiration, hrv, body_temp, gait) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (time_str, reading.hr, reading.o2, reading.elevation, reading.temp, reading.respiration, reading.hrv, reading.body_temp, reading.gait)
     )
 
