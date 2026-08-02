@@ -91,5 +91,5 @@ class Warn(BaseModel):
     """
     The formatted warning sent from the firefighter to the Captain when a deterministic warning is raised
     """
-    type: dict[str, int] # The name of the data that is raised mapped to the data value
+    type: dict[str, int|float] # The name of the data that is raised mapped to the data value
     warn: str # A short description of what is wrong
