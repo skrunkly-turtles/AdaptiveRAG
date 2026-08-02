@@ -48,7 +48,7 @@ async def get_data(ff: int) -> dict[str, dict[str, int|float]]:
     Takes all the data from the last cycle and creates all the deterministic summaries for each category of variable. 
     """
     global LAST_TIME
-    l = LAST_TIME.time.isoformat() if isinstance(LAST_TIME, datetime) else str(LAST_TIME)
+    l = LAST_TIME.isoformat() if isinstance(LAST_TIME, datetime) else str(LAST_TIME)
 
     DB_PATH = FF_DB[ff]
     result = copy.deepcopy(FORMAT)
