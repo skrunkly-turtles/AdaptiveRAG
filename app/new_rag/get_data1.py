@@ -63,7 +63,7 @@ async def get_data(ff: int) -> dict[str, dict[str, int|float]]:
                 WHERE time >= ? AND {col} IS NOT NULL
                 ORDER BY time ASC
             """
-            async with db.execute(query, (l)) as cursor:
+            async with db.execute(query, (l,)) as cursor:
                 rows = await cursor.fetchall()
 
             values = [r[0] for r in rows]
