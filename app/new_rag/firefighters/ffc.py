@@ -127,7 +127,7 @@ async def read_live_data() -> None:
             # 2. Fetch all rows added SINCE the last processed rowid
             def fetch_new_rows():
                 return conn.execute(
-                    "SELECT rowid, * FROM vitals WHERE rowid > ? ORDER BY rowid ASC",
+                    "SELECT rowid, * FROM all_logs WHERE rowid > ? ORDER BY rowid ASC",
                     (last_processed_id,)
                 ).fetchall()
 
