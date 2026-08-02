@@ -117,7 +117,7 @@ async def read_live_data() -> None:
     # 1. Initialize last_processed_id to the current highest rowid
     # (or set to 0 if you want to read past data on startup)
     def get_max_rowid():
-        row = conn.execute("SELECT MAX(rowid) FROM all_logs").fetchone()
+        row = conn.execute("SELECT MAX(rowid) FROM vitals").fetchone()
         return row[0] if row and row[0] else 0
 
     last_processed_id = await asyncio.to_thread(get_max_rowid)
