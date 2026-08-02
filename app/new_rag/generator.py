@@ -124,3 +124,5 @@ async def start_stream():
 
         await asyncio.sleep(2)
 
+if __name__ == "__main__":
+    asyncio.run(start_stream())
