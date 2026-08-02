@@ -109,7 +109,8 @@ async def read_live_data() -> None:
     conn = sqlite3.connect(
         f"file:{DB1_PATH}?mode=ro", 
         uri=True, 
-        timeout=10.0
+        timeout=10.0,
+        check_same_thread=False
     )
     conn.row_factory = sqlite3.Row
 
