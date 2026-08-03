@@ -81,6 +81,7 @@ async def check_data():
     """
     reads the data by the LLM depending on the det_warnings, the attend_to
     """
+    print("getting data")
     global TRENDLINE
 
     curr_data = await get_data(FF_ID)
@@ -177,7 +178,6 @@ async def check_det_warn(data:dict) -> Any:
     if all_warns:
         new_warning = Warn(type=all_warns, warn=desc)
 
-        print(new_warning)
         await warning_queue.put((FF_ID, new_warning))
 
 
