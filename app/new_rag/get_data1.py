@@ -8,6 +8,7 @@ from typing import Any
 from datetime import datetime
 import copy
 import statistics
+import math
 
 # This indexes the last time that was taken
 LAST_TIME = datetime.now()
@@ -75,14 +76,14 @@ async def get_data(ff: int) -> dict[str, dict[str, int|float]]:
             # Filling in all the values in the inner dictionary for each value
             stats["min"] = mn
             stats["max"] = mx
-            stats["range"] = mx - mn
+            stats["range"] = round(mx - mn, 2)
             stats["mean"] = statistics.mean(values)
             if "median" in stats:
-                stats["median"] = statistics.median(values)
+                stats["median"] = round(statistics.median(values), 2)
             if "variance" in stats:
-                stats["variance"] = statistics.stdev(values)
+                stats["variance"] = round(statistics.stdev(values), 2)
             if "diff" in stats:
-                stats["diff"] = values[len(values) - 1] - values[0]
+                stats["diff"] = round(values[len(values) - 1] - values[0], 2)
 
         # Update the LAST_TIME variable
         LAST_TIME = datetime.now()

@@ -203,7 +203,7 @@ async def trendline(data: dict) -> None:
     """
     global TRENDLINE
 
-    TRENDLINE["time"].append(datetime.now())
+    TRENDLINE["time"].append(datetime.now().isoformat())
     for d, a in data.items():
         if d.upper() in TRENDLINE:
             TRENDLINE[d].append(a)
