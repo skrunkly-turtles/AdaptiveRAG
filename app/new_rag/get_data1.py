@@ -77,7 +77,7 @@ async def get_data(ff: int) -> dict[str, dict[str, int|float]]:
             stats["min"] = mn
             stats["max"] = mx
             stats["range"] = round(mx - mn, 2)
-            stats["mean"] = statistics.mean(values)
+            stats["mean"] = round(statistics.mean(values), 2)
             if "median" in stats:
                 stats["median"] = round(statistics.median(values), 2)
             if "variance" in stats:

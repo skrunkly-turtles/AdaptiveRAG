@@ -205,8 +205,9 @@ async def trendline(data: dict) -> None:
 
     TRENDLINE["time"].append(datetime.now().isoformat())
     for d, a in data.items():
-        if d.upper() in TRENDLINE:
-            TRENDLINE[d].append(a)
+        key = d.lower()
+        if key in TRENDLINE:
+            TRENDLINE[key].append(a)
 
     print(TRENDLINE)
 
