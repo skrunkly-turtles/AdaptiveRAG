@@ -97,6 +97,7 @@ async def check_data():
                         Trendline: {TRENDLINE}
             """,
         )
+    print(response['response'])
     return response['response']
 
 
@@ -175,6 +176,8 @@ async def check_det_warn(data:dict) -> Any:
     # OK NOW WE CALL THE WARNING PEOPLE IN THE CAPTAIN THROUGH COMMS.
     if all_warns:
         new_warning = Warn(type=all_warns, warn=desc)
+
+        print(new_warning)
         await warning_queue.put((FF_ID, new_warning))
 
 
