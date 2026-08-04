@@ -45,6 +45,12 @@ WARN_PROMPT = f"""You are a highly precise analytical agent.
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
                 desc: A description of 1-3 sentences outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
+                
+                [EXAMPLE OUTPUT]
+                {{"threshold": "WARNING", "desc": "Firefighter 2 is reporting rising temperature readings that exceed baseline.", "adjust_ffs": [2]}}
+
+                [EXAMPLE OUTPUT - NO ADJUSTMENT NEEDED]
+                {{"threshold": "NORMAL", "desc": "All readings are within normal range.", "adjust_ffs": []}}
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
@@ -76,6 +82,12 @@ DET_WARN = f"""You are a concise agent who has received a deterministic flag whi
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
                 desc: A description of 1-3 sentences outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
+
+                [EXAMPLE OUTPUT]
+                {{"threshold": "WARNING", "desc": "Firefighter 2 is reporting rising temperature readings that exceed baseline.", "adjust_ffs": [2]}}
+
+                [EXAMPLE OUTPUT - NO ADJUSTMENT NEEDED]
+                {{"threshold": "NORMAL", "desc": "All readings are within normal range.", "adjust_ffs": []}}
 """
 
 client = ollama.AsyncClient()
@@ -180,7 +192,10 @@ async def is_warning() -> None:
         r = Analysis.model_validate_json(response['response'])
 
     # In case something goes wrong
-    except (asyncio.TimeoutError, Exception) as e:
+    except asyncio.TimeoutError:
+        print(f"is_warning timed out")
+        return
+    except Exception as e:
         print(f"is_warning failed: {e}")
         return
     print(r)
@@ -199,7 +214,7 @@ async def is_warning() -> None:
 # Just updates the cache yay
 async def update_cache(analysis: Analysis) -> None:
     """
-    Updates memory.data_cache according to the most recent summaries recorded.
+    Updates memory.data_cache according to the most r   ecent summaries recorded.
     """
     new_data = (analysis.threshold, analysis.desc)
     memory.data_cache.insert(0, new_data)
