@@ -47,6 +47,12 @@ class Analysis(BaseModel):
     threshold: str = "NORMAL" # must be chosen from one of three states: NORMAL, WARNING, ALERT
     desc: str= "" # A short description of why this threshold was chosen
     adjust_ffs: list[str]= [] # A list of all the firefighters that need their prompts adjusted!
+    @field_validator("adjust_ffs", mode="before")
+    @classmethod
+    def coerce_empty_dict(cls, v):
+        if v == {}:
+            return []
+        return v 
 
 class Adjust(BaseModel):
     """
@@ -55,12 +61,6 @@ class Adjust(BaseModel):
     ff_id: str # The ID of the firefighter yay
     attention: list[str] = [] # Specific aspects the firefighter should pay attention to
     det_numbers: dict[str, list[int]] = {} # A dictionary of the deterministic triggers that need changing. 
-    @field_validator("adjust_ffs", mode="before")
-    @classmethod
-    def coerce_empty_dict(cls, v):
-        if v == {}:
-            return []
-        return v 
 
 class Alert(BaseModel):
     """
