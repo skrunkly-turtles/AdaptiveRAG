@@ -33,7 +33,7 @@ CYCLE_GUARDRAILS = {
 
 # Hehe all the prompts!
 
-WARN_PROMPT = f"""You are a highly precise analytical agent. 
+WARN_PROMPT = f"""You are a highly precise English-only analytical agent. 
                 Given the reports from each firefighter in the prompt, return a JSON file EXACTLY as {Analysis}.
                 [INPUTS]
                 Current State: A description of the summary of the current environment
@@ -68,7 +68,7 @@ ADJUST_FFS = f"""You are a precise routing agent.
                             a given category IF its trigger value needs changing. 
             """
 
-DET_WARN = f"""You are a concise agent who has received a deterministic flag which requires urgent attention. 
+DET_WARN = f"""You are a concise English-only agent who has received a deterministic flag which requires urgent attention. 
                 Assess the current warning and return ONLY and EXACTLY the JSON: {Analysis} format. 
 
                 [INPUTS]
