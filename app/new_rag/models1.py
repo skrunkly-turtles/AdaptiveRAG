@@ -46,7 +46,7 @@ class Analysis(BaseModel):
     """
     threshold: str = "NORMAL" # must be chosen from one of three states: NORMAL, WARNING, ALERT
     desc: str= "" # A short description of why this threshold was chosen
-    adjust_ffs: list[str]= [] # A list of all the firefighters that need their prompts adjusted!
+    adjust_ffs: list[int]= [] # A list of all the firefighters that need their prompts adjusted!
     @field_validator("adjust_ffs", mode="before")
     @classmethod
     def coerce_empty_dict(cls, v):
