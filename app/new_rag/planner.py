@@ -15,4 +15,5 @@ async def make_plan() -> str:
     """
     The readable action report that is sent to the user!
     """
-    raise NotImplementedError
+    print("weeee")
+    return("Weee")

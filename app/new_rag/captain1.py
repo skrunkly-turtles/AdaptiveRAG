@@ -5,13 +5,12 @@ This is just a temporary thing to sort through the Captain file right now. Agent
 (3) Updates the Memory Manager every cycle
 (4) Changes the cycle as needed in terms of timing, or anything
 """
+import math
 import asyncio
 from models1 import Analysis, Adjust, CACHE_CAP
 import generator
 import ollama
 from firefighters import ff1, ff2, ff3
-from datetime import datetime
-from typing import Any
 from memory_manager import summarize, memory
 from planner import make_plan
 from comms import warning_queue
@@ -46,16 +45,15 @@ WARN_PROMPT = f"""You are a highly precise analytical agent.
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
                 desc: A description of 1-3 sentences outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
-                
-                INSERT EXAMPLE HERE PLEASE
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
                 Given the firefighter_reports, data_summary, and the current warning, return a JSON file EXACTLY as {Adjust}.
                 [INPUTS]
-                Firefighter: The ID of the firefighter the JSON file is sent to.
+                Firefighter ID: The ID of the firefighter the JSON file is sent to.
+                Current Warning: The most recent analysis of the general environment 
+                Current Deterministic Guardrails: A dictionary of the current data categories mapped to their deterministic triggers
                 Firefighter Summaries: A dictionary of the summaries from ALL the firefighters
-                Current_Det: A dictionary of the current data categories mapped to their deterministic triggers
 
                 [OUTPUT JSON SCHEMA]
                 ff_id: The ID of the firefighter. It MUST match the ID in the input
@@ -64,7 +62,6 @@ ADJUST_FFS = f"""You are a precise routing agent.
                             a given category IF its trigger value needs changing. 
             """
 
-# PLEASE FINISH THIS PROMPT
 DET_WARN = f"""You are a concise agent who has received a deterministic flag which requires urgent attention. 
                 Assess the current warning and return ONLY and EXACTLY the JSON: {Analysis} format. 
 
@@ -89,18 +86,28 @@ async def adjust_ffs(analysis: Analysis) -> None:
     This adjusts all the firefighters as needed
     """
     for ff in analysis.adjust_ffs:
-        response = await client.generate(
-            model = 'qwen2.5:14b',
-            system = ADJUST_FFS,
-            prompt = f"""
-                    Firefighter ID: {ff} \n
-                    Current Warning: {analysis.threshold} \n
-                    Firefighter Summaries: {memory.firefighter_summary}
-                    """,
-            format="json"
-        )
-        r = Adjust.model_validate_json(response['response'])
+        try:
+            response = await client.generate(
+                model = 'qwen2.5:14b',
+                system = ADJUST_FFS,
+                prompt = f"""
+                        Firefighter ID: {ff} \n
+                        Current Warning: {analysis.threshold} \n
+                        Current Deterministic Guardrails: {FIREFIGHTER_NAMES[ff].DET_WARNINGS}
+                        Firefighter Summaries: {memory.firefighter_summary}
+                        """,
+                format="json",
+                options={
+                    'num_predict': MAX_TOKENS,
+                    'temperature': 0.2 # A tighter temp means that it rambles less
+                }
+            )
+            r = Adjust.model_validate_json(response['response'])
+        except Exception as e:
+            print(f"adjust_ffs has failed for ff{ff}: {e}")
+            return
 
+        print(r)
         # SENDING TO THE FIREFIGHTER. I've decided that the new function is called adjust
         await FIREFIGHTER_NAMES[r.ff_id].adjust(r, CYCLE)
 
@@ -139,7 +146,7 @@ async def receive_warn() -> None:
                     await adjust_ffs(r)
             if r.threshold == "ALERT":
                     # AHAHHA CALL THE PLANNER OKAY?
-                    make_plan(r)
+                    await make_plan(r)
             await update_cache(r)
 
         # If something doesn't work...
@@ -155,16 +162,28 @@ async def is_warning() -> None:
     Assesses the state of the environment depending on the reports from the firefighters. 
     If necessary will call one or several of the following: Planner, det_cycle, and adjust_ffs. 
     """
-    response = await client.generate(
-        model='qwen2.5:14b',
-        system = WARN_PROMPT,
-        prompt=f"""Current State: {memory.data_summary} \n
-                    Past Warnings: {memory.data_cache} \n
-                    Firefighter Summaries: {memory.firefighter_summary} \n
-        """,
-        format="json"
-    )
-    r = Analysis.model_validate_json(response['response'])
+    print("checking the firefighters")
+    try:
+        response = await client.generate(
+            model='qwen2.5:14b',
+            system = WARN_PROMPT,
+            prompt=f"""Current State: {memory.data_summary} \n
+                        Past Warnings: {memory.data_cache} \n
+                        Firefighter Summaries: {memory.firefighter_summary} \n
+            """,
+            format="json",
+            options={
+                'num_predict': MAX_TOKENS,
+                'temperature': 0.2 # A tighter temp means that it rambles less
+            }
+        )
+        r = Analysis.model_validate_json(response['response'])
+
+    # In case something goes wrong
+    except (asyncio.TimeoutError, Exception) as e:
+        print(f"is_warning failed: {e}")
+        return
+    print(r)
     await det_cycle(r)
 
     # Now we need to call all the actions depending on what the main model has decided.
@@ -172,7 +191,7 @@ async def is_warning() -> None:
         await adjust_ffs(r)
     if r.threshold == "ALERT":
         # AHAHHA CALL THE PLANNER OKAY?
-        make_plan(r)
+        await make_plan(r)
 
     await update_cache(r)
 
@@ -195,11 +214,13 @@ async def det_cycle(analysis: Analysis) -> None:
     Adjusts the general CYCLE timeline deterministically depending on the quality of the analysis that was done!
     This is the cycle that determines how often we need a general summary.
     """
-    if analysis.threshold == "ALERT":
-        global CYCLE 
+    global CYCLE
+    if analysis.threshold == "ALERT": 
         CYCLE = max(CYCLE_GUARDRAILS["min"], CYCLE - 10)
     elif analysis.threshold == "WARNING":
         CYCLE = max(CYCLE_GUARDRAILS["min_warn"], int(CYCLE * 0.8))
+    elif analysis.threshold == "NORMAL":
+        CYCLE = min(CYCLE["max"], math.ceil(CYCLE * 1.1))
 
     
 # This is the cycle that loops around and around...
@@ -207,8 +228,12 @@ async def monitor() -> None:
     """
     This is where we just...do stuff!
     """
+    print("doing stuff")
     while True:
         await asyncio.sleep(CYCLE)
+        await ff1.main()
+        await ff2.main()
+        await ff3.main()
         await summarize()
         await is_warning()
 
