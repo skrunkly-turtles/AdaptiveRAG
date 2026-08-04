@@ -58,9 +58,9 @@ class Adjust(BaseModel):
     """
     If the Captain has deemed these firefighters in need of a change, then this is where we do that!
     """
-    ff_id: str # The ID of the firefighter yay
+    ff_id: int # The ID of the firefighter yay
     attention: list[str] = [] # Specific aspects the firefighter should pay attention to
-    det_numbers: dict[str, list[int]] = {} # A dictionary of the deterministic triggers that need changing. 
+    det_numbers: dict[str, list[int|float]] = {} # A dictionary of the deterministic triggers that need changing. 
 
 class Alert(BaseModel):
     """
