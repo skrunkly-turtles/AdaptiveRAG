@@ -9,10 +9,10 @@ import asyncio
 from models1 import Analysis, Adjust, CACHE_CAP
 import generator
 import ollama
-from firefighters import ff1, ff2, ff3, ffc
+from firefighters import ff1, ff2, ff3
 from datetime import datetime
 from typing import Any
-from memory_manager import summarize, memory, LATEST_DATA
+from memory_manager import summarize, memory
 from planner import make_plan
 from comms import warning_queue
 
@@ -218,7 +218,6 @@ async def main():
         generator.start_stream(), # This makes the generator make data every two seconds.
         monitor(),
         receive_warn(),
-        ffc.main()
     )
 
 
