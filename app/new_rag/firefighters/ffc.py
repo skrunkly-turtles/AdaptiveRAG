@@ -209,6 +209,25 @@ async def trendline(data: dict) -> None:
         if key in TRENDLINE:
             TRENDLINE[key].append(a)
 
+    # Compress the TRENDLINE to half when it is too long ya 
+    if len(TRENDLINE) > 15:
+        for d, a in data.items():
+            key = d.lower()
+            curr = 0
+            i = 0
+            while curr < len(a):
+                if key == 'time' and curr % 2 == 1:
+                    TRENDLINE[key][i] == TRENDLINE[key][curr]
+                    curr += 2
+                    i += 1
+                elif key != 'time' and curr % 2 == 0:
+                    temp = TRENDLINE[key][curr]
+                    curr += 1
+                elif key != 'time' and curr % 2 == 1:
+                    new_val = round(temp + TRENDLINE[key][curr]/ 2 , 2)
+                    TRENDLINE[key][i] == new_val
+                    i += 1
+                    curr += 1
     print(TRENDLINE)
 
 
