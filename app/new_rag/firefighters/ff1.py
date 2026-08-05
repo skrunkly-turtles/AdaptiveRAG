@@ -45,7 +45,7 @@ ATTEND_TO = []
 DET_WARNINGS = {
     "hr": [40, 230],
     "o2": [93, 100],
-    "temp": [36, 39],
+    "temp": [10, 30],
     "respiration": [12, 25],
     "hrv": [40, 200],
     "body_temp": [36.7, 37.2],
