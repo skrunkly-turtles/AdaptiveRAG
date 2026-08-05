@@ -246,9 +246,6 @@ async def monitor() -> None:
     print("doing stuff")
     while True:
         await asyncio.sleep(CYCLE)
-        await ff1.main()
-        await ff2.main()
-        await ff3.main()
         await summarize()
         await is_warning()
 
@@ -256,6 +253,9 @@ async def monitor() -> None:
 async def main():
     await asyncio.gather(
         generator.start_stream(), # This makes the generator make data every two seconds.
+        ff1.main(),
+        ff2.main(),
+        ff3.main(),
         monitor(),
         receive_warn(),
     )

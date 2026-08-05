@@ -85,6 +85,7 @@ async def check_data():
     global TRENDLINE
 
     curr_data = await get_data(FF_ID)
+    print(curr_data)
 
     tl_data = {c: curr_data[c]["mean"] for c in curr_data}
 
@@ -210,7 +211,7 @@ async def trendline(data: dict) -> None:
             TRENDLINE[key].append(a)
 
     # Compress the TRENDLINE to half when it is too long ya 
-    if len(TRENDLINE) > 15:
+    if len(TRENDLINE['time']) > 15:
         for d, a in data.items():
             key = d.lower()
             curr = 0
