@@ -85,7 +85,6 @@ async def check_data():
     global TRENDLINE
 
     curr_data = await get_data(FF_ID)
-    print(curr_data)
 
     tl_data = {c: curr_data[c]["mean"] for c in curr_data}
 
@@ -229,7 +228,6 @@ async def trendline(data: dict) -> None:
                     TRENDLINE[key][i] == new_val
                     i += 1
                     curr += 1
-    print(TRENDLINE)
 
 
 async def summaries() -> None:
