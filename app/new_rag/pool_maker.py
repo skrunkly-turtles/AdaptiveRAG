@@ -42,7 +42,13 @@ async def clear_db() -> None:
         except PermissionError:
             print("Could not delete DB3 file. Is another process or viewer open?")
 
+async def init_db() -> None:
+    for path in (DB1_PATH, DB2_PATH, DB3_PATH):
+        async with aiosqlite.connect(path) as db:
+            await _init_db(db)
+            await db.commit()
 
+            
 async def _init_db(db: aiosqlite.Connection) -> None:
     """Creates the unified tables and adds critical lookup indexes."""
     await db.execute("PRAGMA journal_mode=WAL")

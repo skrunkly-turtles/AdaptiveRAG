@@ -253,6 +253,7 @@ async def monitor() -> None:
 
 async def main():
     await pool_maker.clear_db()
+    await pool_maker.init_db()
     await asyncio.gather(
         generator.start_stream(), # This makes the generator make data every two seconds.
         ff1.main(),
