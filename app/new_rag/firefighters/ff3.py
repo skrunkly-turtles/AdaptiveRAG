@@ -33,7 +33,7 @@ TRENDLINE = {
     "gait": []
 }
 # The live data in an SQL file
-DB3_PATH = 'data/vitals3.db'
+DB1_PATH = 'data/vitals3.db'
 
 client = ollama.AsyncClient()
 # The ID of the firefighter yay
@@ -110,7 +110,7 @@ async def read_live_data() -> None:
     """
     # Open as Read-Only via URI URI + add timeout to prevent locking conflicts
     conn = sqlite3.connect(
-        f"file:{DB3_PATH}?mode=ro", 
+        f"file:{DB1_PATH}?mode=ro", 
         uri=True, 
         timeout=10.0,
         check_same_thread=False
