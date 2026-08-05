@@ -235,7 +235,7 @@ async def det_cycle(analysis: Analysis) -> None:
     elif analysis.threshold == "WARNING":
         CYCLE = max(CYCLE_GUARDRAILS["min_warn"], int(CYCLE * 0.8))
     elif analysis.threshold == "NORMAL":
-        CYCLE = min(CYCLE["max"], math.ceil(CYCLE * 1.1))
+        CYCLE = min(CYCLE_GUARDRAILS["max"], math.ceil(CYCLE * 1.1))
 
     
 # This is the cycle that loops around and around...
