@@ -5,6 +5,7 @@ This is just a temporary thing to sort through the Captain file right now. Agent
 (3) Updates the Memory Manager every cycle
 (4) Changes the cycle as needed in terms of timing, or anything
 """
+import pool_maker
 import math
 import asyncio
 from models1 import Analysis, Adjust, CACHE_CAP
@@ -251,6 +252,7 @@ async def monitor() -> None:
 
 
 async def main():
+    await pool_maker.clear_db()
     await asyncio.gather(
         generator.start_stream(), # This makes the generator make data every two seconds.
         ff1.main(),

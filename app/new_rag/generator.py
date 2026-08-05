@@ -107,8 +107,6 @@ def data() -> dict:
 
 
 async def start_stream():
-    count = 0
-    await pool_maker.clear_db()
     while True:
         p1 = data()
         p2 = data()
@@ -117,10 +115,6 @@ async def start_stream():
         await pool_maker.process_incoming(p1, 1)
         await pool_maker.process_incoming(p2, 2)
         await pool_maker.process_incoming(p3, 3)
-        count += 1
-        if count == 5:
-            d = {1: p1, 2: p2, 3: p3}
-            count = 0 
 
         await asyncio.sleep(2)
 
