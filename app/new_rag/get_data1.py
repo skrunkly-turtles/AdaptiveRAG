@@ -81,7 +81,10 @@ async def get_data(ff: int) -> dict[str, dict[str, int|float]]:
             if "median" in stats:
                 stats["median"] = round(statistics.median(values), 2)
             if "variance" in stats:
-                stats["variance"] = round(statistics.stdev(values), 2)
+                if len(values) > 1:
+                    stats["variance"] = round(statistics.stdev(values), 2)
+                else:
+                    stats["variance"] = 0.0
             if "diff" in stats:
                 stats["diff"] = round(values[len(values) - 1] - values[0], 2)
 

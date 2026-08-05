@@ -48,7 +48,7 @@ async def init_db() -> None:
             await _init_db(db)
             await db.commit()
 
-            
+
 async def _init_db(db: aiosqlite.Connection) -> None:
     """Creates the unified tables and adds critical lookup indexes."""
     await db.execute("PRAGMA journal_mode=WAL")
@@ -143,7 +143,6 @@ async def process_incoming(data: dict, ff: int) -> None:
     # Open ONE connection for the entire request cycle
     path = FF_DB[ff]
     async with aiosqlite.connect(path) as db:
-        await _init_db(db)
         await db.execute("PRAGMA journal_mode=WAL")
         
         # Log the data point and update summaries sequentially in the same transaction
