@@ -26,6 +26,7 @@ PLAN_PROMPT = f"""You are a clear and grounded agent focusing on creating a read
             Notes:
             - Remember that your target audience is the human firefighter squad
             - Your actions should be time-sensitive. 
+            - The action plan must take into account the environment, which is a fire rescue. 
 
 """
 async def make_plan(r: Analysis) -> str:

@@ -53,6 +53,7 @@ DET_WARNINGS = {
 }
 
 SYS_PROMPT = f""" You are an analytical agent for {FF_ID}. Make sure you identify whose agent you are. 
+                    The data you receive is in the context of a fire rescue, with your worker being a firefighter.
                     Given the summaries from the past cycle, the cache of summaries from the past history, 
                     write a general report of the state and wellbeing of the worker. Keep in mind the deterministic
                     warnings, which indicate the normal ranges for each cateogory. 
