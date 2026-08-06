@@ -151,9 +151,10 @@ async def receive_warn() -> None:
                     },
                     format="json"
                 ),
-                timeout=10 # The max amount that they await for
+                timeout=15 # The max amount that they await for
             )
             r = Analysis.model_validate_json(response['response'])
+            print(f"received warning:    {r}")
             await det_cycle(r)
             if r.adjust_ffs:
                     await adjust_ffs(r)
@@ -199,7 +200,7 @@ async def is_warning() -> None:
     except Exception as e:
         print(f"is_warning failed: {e}")
         return
-    print(r)
+    print(f"regular cycle checks: {r}")
     await det_cycle(r)
 
     # Now we need to call all the actions depending on what the main model has decided.

@@ -111,7 +111,7 @@ async def start_stream():
         p1 = data()
         p2 = data()
         p3 = data()
-        # print(new_packet)
+        
         await pool_maker.process_incoming(p1, 1)
         await pool_maker.process_incoming(p2, 2)
         await pool_maker.process_incoming(p3, 3)

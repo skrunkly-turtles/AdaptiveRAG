@@ -58,7 +58,7 @@ async def compress_window() -> None:
     )
         # Update the memory!
         memory.data_summary = response['response']
-
+        print(f"MEMORY SUMMARY: \n {memory.data_summary}")
     except Exception as e:
         print(f"Compression failed uh oh :( {e}")
     

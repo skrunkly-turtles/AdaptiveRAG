@@ -11,7 +11,7 @@ from models1 import Plan
 PLAN_PROMPT = f"""You are a clear agent. 
             
 """
-async def make_plan() -> str:
+async def make_plan(r) -> str:
     """
     The readable action report that is sent to the user!
     """
