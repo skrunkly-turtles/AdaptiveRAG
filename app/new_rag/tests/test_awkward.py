@@ -7,7 +7,7 @@ skipped test below for exactly what's missing.
 """
 import pytest
 from get_data1 import compute_stats
-from firefighters import ff1
+from new_rag.firefighters import ff1
 
 
 def test_sensor_dead_from_row_zero():

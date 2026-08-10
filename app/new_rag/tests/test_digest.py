@@ -8,7 +8,7 @@ compute slope -- nothing in the current codebase does. That row is skipped
 here (see test_slope_not_yet_implemented) rather than faked.
 """
 import pytest
-from get_data1 import compute_stats
+from new_rag.get_data1 import compute_stats
 
 
 def test_constant_series():

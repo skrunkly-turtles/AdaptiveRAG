@@ -8,7 +8,7 @@ which explicitly scopes that part to a small manual run, not the automated
 pytest suite.
 """
 from get_data1 import compute_stats
-from firefighters import ff1, ff2, ff3
+from new_rag.firefighters import ff1, ff2, ff3
 
 
 def test_compute_stats_deterministic():

@@ -15,7 +15,7 @@ NOTE on coverage: same gaps as before -- no rate-of-rise guard, no permanent
 sensor-death guard exist in the code yet. Skipped, not faked.
 """
 import pytest
-from firefighters import ff1, ff2, ff3
+from new_rag.firefighters import ff1, ff2, ff3
 
 IMPLEMENTATIONS = [
     pytest.param(ff1.evaluate_guards, id="ff1"),
