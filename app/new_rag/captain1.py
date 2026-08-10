@@ -118,7 +118,7 @@ async def adjust_ffs(analysis: Analysis) -> None:
             r = Adjust.model_validate_json(response['response'])
         except Exception as e:
             print(f"adjust_ffs has failed for ff{ff}: {e}")
-            return
+            continue
 
         print(r)
         # SENDING TO THE FIREFIGHTER. I've decided that the new function is called adjust

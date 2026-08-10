@@ -5,7 +5,6 @@ The new firefighters will need to do the following:
 (2) Retrieve information as needed
 (3) 
 """
-import generator
 from datetime import datetime
 import sqlite3
 import asyncio
@@ -13,33 +12,29 @@ import math
 import json
 from models1 import Adjust, Warn, Data
 import ollama
-from typing import Any, Annotated
+from typing import Any
 from get_data1 import get_data
 from memory_manager import memory
 from comms import warning_queue
 
-# This should be EXACTLY what captain1 says
 CYCLE = 10
 
 TRENDLINE = {
     "time": [],
     "hr": [],
     "o2": [],
-    "elevation":[],
+    "elevation": [],
     "temp": [],
     "respiration": [],
     "hrv": [],
     "body_temp": [],
     "gait": []
 }
-# The live data in an SQL file
-DB1_PATH = 'data/vitals3.db'
 
+DB1_PATH = 'data/vitals3.db'
 client = ollama.AsyncClient()
-# The ID of the firefighter yay
 FF_ID = 3
 
-# Data we should especially attend to
 ATTEND_TO = []
 
 DET_WARNINGS = {
@@ -61,6 +56,13 @@ SYS_PROMPT = f""" You are an analytical agent for {FF_ID}. Make sure you identif
                     You MUST keep your summary LESS THAN 4 sentences.
             """
 
+# Tracks this worker's own last-read time. Only ever touched by this module
+# for this one ff, so (unlike the old get_data1.py global) there's no
+# cross-firefighter desync risk. check_data() still lets you override it
+# explicitly for tests.
+LAST_CHECK = datetime.now()
+
+
 async def adjust(params: Adjust, cycle: int) -> None:
     """
     Adjust the prompt for the firefighter before it goes to scan the dataset.
@@ -74,24 +76,30 @@ async def adjust(params: Adjust, cycle: int) -> None:
     global DET_WARNINGS
     for w in params.det_numbers:
         if w not in DET_WARNINGS:
-            raise ValueError (f"{w} not a category of data bruh")
+            raise ValueError(f"{w} not a category of data bruh")
         DET_WARNINGS[w] = params.det_numbers[w]
-    
 
-async def check_data():
-    """
-    reads the data by the LLM depending on the det_warnings, the attend_to
-    """
-    global TRENDLINE
 
-    curr_data = await get_data(FF_ID)
+async def check_data(since: datetime | None = None) -> str:
+    """
+    Reads the data by the LLM depending on the det_warnings, the attend_to.
+
+    since: optional override for the window start. Defaults to this worker's
+    own LAST_CHECK. Passing it explicitly lets tests call this with a fixed
+    window instead of depending on wall-clock state.
+    """
+    global TRENDLINE, LAST_CHECK
+
+    window_start = since if since is not None else LAST_CHECK
+    curr_data = await get_data(FF_ID, window_start)
+    LAST_CHECK = datetime.now()
 
     tl_data = {c: curr_data[c]["mean"] for c in curr_data}
 
     await trendline(tl_data)
 
     response = await client.generate(model='qwen2.5:14b',
-            system = SYS_PROMPT,
+            system=SYS_PROMPT,
             prompt=f"""Deterministic warnings: {DET_WARNINGS} \n
                         Pay special attention to: {ATTEND_TO} \n 
                         Current Data: {curr_data} \n 
@@ -103,22 +111,18 @@ async def check_data():
     return response['response']
 
 
-# This is a fat thing to read live data yay
 async def read_live_data() -> None:
     """
     Reads new live vitals entries as they arrive for deterministic warning checks.
     """
-    # Open as Read-Only via URI URI + add timeout to prevent locking conflicts
     conn = sqlite3.connect(
-        f"file:{DB1_PATH}?mode=ro", 
-        uri=True, 
+        f"file:{DB1_PATH}?mode=ro",
+        uri=True,
         timeout=10.0,
         check_same_thread=False
     )
     conn.row_factory = sqlite3.Row
 
-    # 1. Initialize last_processed_id to the current highest rowid
-    # (or set to 0 if you want to read past data on startup)
     def get_max_rowid():
         row = conn.execute("SELECT MAX(rowid) FROM all_logs").fetchone()
         return row[0] if row and row[0] else 0
@@ -127,7 +131,6 @@ async def read_live_data() -> None:
 
     try:
         while True:
-            # 2. Fetch all rows added SINCE the last processed rowid
             def fetch_new_rows():
                 return conn.execute(
                     "SELECT rowid, * FROM all_logs WHERE rowid > ? ORDER BY rowid ASC",
@@ -136,12 +139,9 @@ async def read_live_data() -> None:
 
             rows = await asyncio.to_thread(fetch_new_rows)
 
-            # 3. Process each new row once
             for row in rows:
                 Data.model_validate(dict(row))
                 last_processed_id = row["rowid"]
-
-                # Now we run deterministic warnings!
                 await check_det_warn(dict(row))
 
             await asyncio.sleep(2)
@@ -150,56 +150,64 @@ async def read_live_data() -> None:
     finally:
         conn.close()
 
-# The functions that deal with the deterministic warnings
-async def check_det_warn(data:dict) -> Any:
+
+def evaluate_guards(reading: dict, thresholds: dict) -> dict:
     """
-    Checks for deterministic alerts. Will send a warning to send_alert if needed
+    Pure guard predicate: given one reading and the threshold table, return
+    which fields are out of bounds and why. No I/O, no queue -- this is what
+    Test 2 calls directly with a hand-built stream to check exact-row firing.
+
+    reading:    dict of metric -> value (e.g. one row from all_logs)
+    thresholds: dict of metric -> [low, high]
+
+    Returns {} if nothing fired, otherwise {"warnings": {metric: value, ...},
+    "desc": "<human-readable description>"}.
     """
     all_warns = {}
     desc = ""
-    vitals = {k:v for k, v in data.items() if k in DET_WARNINGS}
+    vitals = {k: v for k, v in reading.items() if k in thresholds}
+
     for d, v in vitals.items():
-        if d not in DET_WARNINGS:
-            raise ValueError(f"how is this even possible that {d} is here?")
-        # Check lower bound
-        if data[d] < DET_WARNINGS[d][0]:
-            all_warns[d] = data[d]
-            if desc:
-                desc += "and "
-            desc += f"{d} is too low with value of {data[d]} "
-            
-        # Check upper bound
-        if data[d] > DET_WARNINGS[d][1]:
-            all_warns[d] = data[d]
-            if desc:
-                desc += "and "
-            desc += f"{d} is too high, with value of {data[d]}"
+        if v is None:
+            continue
+        lo, hi = thresholds[d]
+        if v < lo:
+            all_warns[d] = v
+            desc += ("and " if desc else "") + f"{d} is too low with value of {v} "
+        elif v > hi:
+            all_warns[d] = v
+            desc += ("and " if desc else "") + f"{d} is too high, with value of {v}"
 
-    # OK NOW WE CALL THE WARNING PEOPLE IN THE CAPTAIN THROUGH COMMS.
-    if all_warns:
-        new_warning = Warn(type=all_warns, warn=desc)
+    if not all_warns:
+        return {}
+    return {"warnings": all_warns, "desc": desc}
 
+
+async def check_det_warn(data: dict) -> Any:
+    """
+    Checks for deterministic alerts and pushes to warning_queue if any fired.
+    Thin wrapper around evaluate_guards() -- keep new guard logic in that
+    pure function, not here.
+    """
+    result = evaluate_guards(data, DET_WARNINGS)
+    if result:
+        new_warning = Warn(type=result["warnings"], warn=result["desc"])
         await warning_queue.put((FF_ID, new_warning))
 
 
-async def check_trend_warn(data:dict) -> Any:
+async def check_trend_warn(data: dict) -> Any:
     """
     Checks the deterministics trends? NOT SURE YET HEHE
     """
     raise NotImplementedError
 
 
-# This function creates the general trendline that the firefighter will have cached
 async def trendline(data: dict) -> None:
     """
-    Makes a trendline based on the mean of the data collected every cycle for each category of data.
-    These trendlines will be outputted as a JSON in the following formatted dictionary:
-    
-    {
-        "time": [timestamp, timestamp1, timestamp2],
-        <category name>: [value, value1, value2],
-        <category name>: [value, value1, value2]
-    }
+    Makes a trendline based on the mean of the data collected every cycle for
+    each category of data. Compresses TRENDLINE to half its length (pairwise
+    averaging values, keeping every other timestamp) once it exceeds 15
+    entries, so it doesn't grow unbounded.
     """
     global TRENDLINE
 
@@ -209,25 +217,22 @@ async def trendline(data: dict) -> None:
         if key in TRENDLINE:
             TRENDLINE[key].append(a)
 
-    # Compress the TRENDLINE to half when it is too long ya 
     if len(TRENDLINE['time']) > 15:
-        for d, a in data.items():
-            key = d.lower()
-            curr = 0
+        for key, values in TRENDLINE.items():
+            compressed = []
             i = 0
-            while curr < len(a):
-                if key == 'time' and curr % 2 == 1:
-                    TRENDLINE[key][i] == TRENDLINE[key][curr]
-                    curr += 2
-                    i += 1
-                elif key != 'time' and curr % 2 == 0:
-                    temp = TRENDLINE[key][curr]
-                    curr += 1
-                elif key != 'time' and curr % 2 == 1:
-                    new_val = round(temp + TRENDLINE[key][curr]/ 2 , 2)
-                    TRENDLINE[key][i] == new_val
-                    i += 1
-                    curr += 1
+            while i < len(values):
+                if key == 'time':
+                    compressed.append(values[i])  # keep every other timestamp
+                    i += 2
+                else:
+                    if i + 1 < len(values):
+                        compressed.append(round((values[i] + values[i + 1]) / 2, 2))
+                        i += 2
+                    else:
+                        compressed.append(values[i])  # odd one out, keep as-is
+                        i += 1
+            TRENDLINE[key] = compressed
 
 
 async def summaries() -> None:
