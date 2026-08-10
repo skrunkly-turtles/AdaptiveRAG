@@ -6,7 +6,7 @@ ollama client and captain1.py to be importable -- not wired up yet, see the
 skipped test below for exactly what's missing.
 """
 import pytest
-from get_data1 import compute_stats
+from new_rag.get_data1 import compute_stats
 from new_rag.firefighters import ff1
 
 
