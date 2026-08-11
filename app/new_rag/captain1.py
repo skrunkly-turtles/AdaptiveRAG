@@ -19,7 +19,7 @@ from comms import warning_queue
 from eval import get_results, start_stream
 
 # The max amount of tokens allowed to generate in a response
-MAX_TOKENS = 200
+MAX_TOKENS = 150
 
 # The amount of time for each cycle
 CYCLE = 10
@@ -52,7 +52,7 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
                     "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
                 confidence: a float describing how sure you are of this condition from 1 - 100. 
-                desc: A description of 1-3 sentences outlining why this threshold was chosen. 
+                desc: A description of 1 sentence outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
                 [EXAMPLE OUTPUT]
@@ -95,7 +95,7 @@ DET_WARN = f"""You are a concise English-only agent who has received a determini
                 type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
                     "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
                 confidence: a float describing how sure you are of this condition from 1 - 100. 
-                desc: A description of 1-3 sentences outlining why this threshold was chosen. 
+                desc: A description of 1 sentence outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
 
                 [EXAMPLE OUTPUT]
@@ -171,9 +171,9 @@ async def receive_warn() -> None:
                     },
                     format="json"
                 ),
-                timeout=15 # The max amount that they await for
+                timeout=25 # The max amount that they await for
             )
-            duration = round((time.perf_counter - start_time), 2)
+            duration = round((time.perf_counter() - start_time), 2)
             r = Analysis.model_validate_json(response['response'])
             # print(f"received warning:    {r}")
             print(f"receiving warning took {duration} seconds")
@@ -185,7 +185,7 @@ async def receive_warn() -> None:
                     await make_plan(r)
 
             await update_cache(r)
-            get_results(r.type, r.confidence, duration, r.adjust_ffs)
+            await get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
         # If something doesn't work...
         except asyncio.TimeoutError:
@@ -215,7 +215,7 @@ async def is_warning() -> None:
                 'temperature': 0.2 # A tighter temp means that it rambles less
             }
         )
-        duration = round((time.perf_counter - start_time), 2)
+        duration = round((time.perf_counter() - start_time), 2)
         r = Analysis.model_validate_json(response['response'])
         print(f"is_warning took {duration} seconds")
 
@@ -238,7 +238,7 @@ async def is_warning() -> None:
 
     await update_cache(r)
 
-    get_results(r.type, r.confidence, duration, r.adjust_ffs)
+    await get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
 
 # Just updates the cache yay
