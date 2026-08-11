@@ -16,7 +16,7 @@ from firefighters import ff1, ff2, ff3
 from memory_manager import summarize, memory
 from planner import make_plan
 from comms import warning_queue
-from eval import get_results
+from eval import get_results, start_stream
 
 # The max amount of tokens allowed to generate in a response
 MAX_TOKENS = 200
@@ -281,7 +281,8 @@ async def main():
     await pool_maker.clear_db()
     await pool_maker.init_db()
     await asyncio.gather(
-        generator.start_stream(), # This makes the generator make data every two seconds.
+        # generator.start_stream(), # This makes the generator make data every two seconds.
+        start_stream(),
         ff1.main(),
         ff2.main(),
         ff3.main(),
