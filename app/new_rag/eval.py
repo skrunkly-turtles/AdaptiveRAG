@@ -257,7 +257,7 @@ def next_team_tick(state: dict) -> dict:
         if s["elapsed"] >= s["duration"]:
             state[wid] = {"kind": NORMAL, "subtype": 0, "elapsed": 0, "duration": 0}
 
-    return {"vitals": vitals, "label": label, "flagged_worker": flagged_worker, "subtype": subtype_out}
+    return {"label": label, "flagged_worker": flagged_worker, "subtype": subtype_out}
 
 
 # ---------------------------------------------------------------------------
