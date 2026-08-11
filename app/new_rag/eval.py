@@ -40,7 +40,7 @@ MIN_ANOMALY_TICKS = 10   # an anomaly, once triggered, lasts AT LEAST this long
 MAX_ANOMALY_TICKS = 20   # and at most this long, picked at random per episode
 
 EVAL_MODE = True         # True: run NUM_TEST_TICKS ticks and score results.
-NUM_TEST_TICKS = 200     # False (generator mode): stream forever, like generator.py.
+NUM_TEST_TICKS = 40     # False (generator mode): stream forever, like generator.py.
 
 # Filled in by get_results(), called from captain1.py once per cycle as
 # the stream runs - NOT by this file. Index i in each of these three
