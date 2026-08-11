@@ -2,34 +2,27 @@
 This file replaces generator.py as the data source AND doubles as the
 accuracy evaluator. It streams realistic per-worker vitals to
 pool_maker.process_incoming(vitals, worker_id) - same call pattern as
-generator.py, one call per worker per tick - and scores what the system
-says against ground truth.
+generator.py, one call per worker per tick.
+
+Scoring is NOT done by reading process_incoming's return value. The
+captain (captain1.py) is the one deciding the team-level verdict each
+cycle, and it reports that verdict back by calling get_results(type,
+conf, time) below, once per cycle, as the stream runs. So this file's
+job is: (a) generate ground truth with real cross-worker correlation,
+(b) send it to pool_maker, (c) let the captain fill in PREDICTION_TYPE /
+PREDICTION_CONFIDENCE / LATENCY via get_results as it goes, and (d) once
+the stream ends, line those up against ground truth and score them.
 
 KEY DESIGN PRINCIPLE:
 
-  A rising heart rate is ambiguous at the single-worker level. It could
-  be a cardiac event (INTERNAL/medical) or the room getting hot
-  (EXTERNAL/environmental) - and those demand opposite responses: pull
-  one person for medical care, vs. withdraw the whole team.
+  A rising heart rate is ambiguous at the single-worker level. It could be a cardiac event (INTERNAL/medical) 
+  or the room getting hot (EXTERNAL/environmental) - and those demand opposite responses: pull one person for medical care, vs. withdraw the whole team.
 
-  Because process_incoming is called per worker, per tick (matching
-  pool_maker's real interface), this file does NOT try to hand the
-  system all workers at once. The cross-worker correlation has to live
-  in the system's own memory (memory_manager) across those calls. What
-  THIS file is responsible for is making sure ground truth is generated
-  with genuine team-level correlation, so that signal actually exists to
-  be picked up:
     - EXTERNAL: every worker's ambient temp/elevation rises together,
       tick after tick; HR only follows later, for everyone, as a
       secondary effect.
     - INTERNAL: exactly one worker's vitals go bad while ambient stays
       normal and the other two workers stay normal the whole time.
-
-  Anomalies also last a REALISTIC minimum duration once triggered -
-  nobody has a 10-second heart attack or a fire that clears in one tick.
-  Every anomaly episode runs for at least MIN_ANOMALY_TICKS (10) ticks,
-  with a randomized total duration on top of that, before it's allowed
-  to resolve back to normal.
 """
 
 import random
@@ -48,6 +41,15 @@ MAX_ANOMALY_TICKS = 20   # and at most this long, picked at random per episode
 
 EVAL_MODE = True         # True: run NUM_TEST_TICKS ticks and score results.
 NUM_TEST_TICKS = 200     # False (generator mode): stream forever, like generator.py.
+
+# Filled in by get_results(), called from captain1.py once per cycle as
+# the stream runs - NOT by this file. Index i in each of these three
+# lists is assumed to correspond to tick i's ground truth, i.e. the
+# captain calls get_results() exactly once per tick, in order.
+PREDICTION_TYPE = []
+PREDICTION_CONFIDENCE = []
+LATENCY = []
+FFS = []
 
 NORMAL = "normal"
 INTERNAL = "internal"
@@ -262,34 +264,36 @@ def next_team_tick(state: dict) -> dict:
 # Scoring
 # ---------------------------------------------------------------------------
 
-def record_matrix(ground_truth: list, predictions: list) -> dict:
+def record_matrix(ground_truth: list, predicted_types: list) -> dict:
     """
-    Confusion matrix over the three team-level labels, plus a check of
-    whether an INTERNAL verdict named the correct worker to pull.
+    Confusion matrix over the three team-level labels, built from the
+    captain's own reported verdicts (PREDICTION_TYPE, via get_results),
+    not from anything this file inferred itself.
 
-    predictions[i] is expected to be the tick's aggregate system verdict:
-    {"label": "normal"|"internal"|"external", "worker": <id or None>}.
-    See start_stream()'s NOTE for how that's derived from three separate
-    process_incoming() calls.
+    ground_truth[i] is a step dict from next_team_tick().
+    predicted_types[i] is the string the captain passed to get_results()
+    for that same cycle - "normal" / "internal" / "external".
+
+    NOTE: get_results() doesn't take a worker id, only a type/confidence/
+    latency, so this can't currently check whether the captain named the
+    *correct* worker for an INTERNAL event - only whether it got the
+    normal/internal/external classification right. If captain1.py starts
+    passing a worker id too, that check can be added back here.
     """
+    n = min(len(ground_truth), len(predicted_types))
+    if len(ground_truth) != len(predicted_types):
+        print(f"warning: ground_truth has {len(ground_truth)} ticks but "
+              f"PREDICTION_TYPE has {len(predicted_types)} entries - "
+              f"get_results() wasn't called exactly once per tick. "
+              f"Scoring only the first {n} aligned entries.")
+
     matrix = {actual: {predicted: 0 for predicted in LABELS} for actual in LABELS}
-    correct_worker = 0
-    internal_total = 0
-
-    for truth, pred in zip(ground_truth, predictions):
+    for truth, predicted in zip(ground_truth[:n], predicted_types[:n]):
         actual = truth["label"]
-        predicted = pred["label"] if pred["label"] in LABELS else NORMAL
+        predicted = predicted if predicted in LABELS else NORMAL
         matrix[actual][predicted] += 1
-        if actual == INTERNAL:
-            internal_total += 1
-            if predicted == INTERNAL and pred.get("worker") == truth["flagged_worker"]:
-                correct_worker += 1
 
-    matrix["_internal_worker_accuracy"] = (
-        correct_worker / internal_total if internal_total else None
-    )
     return matrix
-
 
 # ---------------------------------------------------------------------------
 # Main stream - replaces generator.py's start_stream()
@@ -298,61 +302,59 @@ def record_matrix(ground_truth: list, predictions: list) -> dict:
 async def start_stream():
     """
     Streams p1, p2, p3 (one per worker) to pool_maker.process_incoming
-    every TICK_SECONDS, same call pattern as generator.py. In EVAL_MODE
-    this also records ground truth vs. the system's verdicts and prints a
-    confusion matrix + latency stats at the end; otherwise it behaves
-    like generator.py and just runs forever.
+    every TICK_SECONDS, same call pattern as generator.py.
 
-    NOTE ON SCORING: process_incoming is called once per worker (its real
-    signature), so there's no single "team verdict" return value handed
-    back directly. This assumes each call's return includes the system's
-    CURRENT best team-level read after ingesting that data point (it can
-    keep using memory_manager.memory across calls to do the cross-worker
-    comparison). The verdict returned by the third call in a tick - after
-    all three workers' data for that tick is in - is used as that tick's
-    scored prediction. If pool_maker's real return shape differs, only
-    the three `pred = await pool_maker.process_incoming(...)` lines and
-    the `predictions.append(...)` line need to change.
+    This function does NOT capture or time the system's verdict itself -
+    the captain (captain1.py) watches the stream and calls get_results()
+    once per cycle as it goes, filling PREDICTION_TYPE /
+    PREDICTION_CONFIDENCE / LATENCY on its own. All this loop does is
+    keep a parallel list of ground truth so the two can be lined up and
+    scored once the stream ends.
     """
     state = _init_team_state()
-    ground_truth, predictions, latencies = [], [], []
+    ground_truth = []
 
     tick = 0
     while (EVAL_MODE and tick < NUM_TEST_TICKS) or not EVAL_MODE:
         step = next_team_tick(state)
         p1, p2, p3 = step["vitals"][1], step["vitals"][2], step["vitals"][3]
 
-        start = datetime.now()
-        pred1 = await pool_maker.process_incoming(p1, 1)
-        pred2 = await pool_maker.process_incoming(p2, 2)
-        pred3 = await pool_maker.process_incoming(p3, 3)
-        latencies.append((datetime.now() - start).total_seconds())
+        await pool_maker.process_incoming(p1, 1)
+        await pool_maker.process_incoming(p2, 2)
+        await pool_maker.process_incoming(p3, 3)
 
         if EVAL_MODE:
-            final = pred3 if isinstance(pred3, dict) else {}
             ground_truth.append(step)
-            predictions.append({
-                "label": final.get("label", NORMAL),
-                "worker": final.get("worker"),
-            })
 
         tick += 1
         await asyncio.sleep(TICK_SECONDS)
 
     if EVAL_MODE:
-        matrix = record_matrix(ground_truth, predictions)
-        avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
-        max_latency = max(latencies) if latencies else 0.0
-        print("confusion matrix:", matrix)
-        print(f"avg latency: {avg_latency:.3f}s, max: {max_latency:.3f}s")
+        # matrix = record_matrix(ground_truth, PREDICTION_TYPE)
+        avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
+        max_latency = max(LATENCY) if LATENCY else 0.0
+        avg_conf = sum(PREDICTION_CONFIDENCE) / len(PREDICTION_CONFIDENCE) if PREDICTION_CONFIDENCE else 0.0
         return {
-            "confusion_matrix": matrix,
             "avg_latency": avg_latency,
             "max_latency": max_latency,
+            "avg_confidence": avg_conf,
             "ground_truth": ground_truth,
-            "predictions": predictions,
-            "latencies": latencies,
+            "predictions": list(PREDICTION_TYPE),
+            "confidences": list(PREDICTION_CONFIDENCE),
+            "latencies": list(LATENCY),
         }
+
+
+async def get_results(type: str, conf: float, time: float, ff: list):
+    """
+    The nice function that records all the responses, called by
+    captain1.py after every CYCLE.
+    """
+    global PREDICTION_CONFIDENCE, PREDICTION_TYPE, LATENCY
+    PREDICTION_CONFIDENCE.append(conf)
+    PREDICTION_TYPE.append(type)
+    LATENCY.append(time)
+    FFS.append(ff)
 
 
 if __name__ == "__main__":

@@ -182,7 +182,7 @@ async def receive_warn() -> None:
                     await make_plan(r)
 
             await update_cache(r)
-            get_results(r.type, r.confidence)
+            get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
         # If something doesn't work...
         except asyncio.TimeoutError:
@@ -235,7 +235,7 @@ async def is_warning() -> None:
 
     await update_cache(r)
 
-    get_results(r.type, r.confidence)
+    get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
 
 # Just updates the cache yay
