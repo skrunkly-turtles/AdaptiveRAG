@@ -5,6 +5,7 @@ The new firefighters will need to do the following:
 (2) Retrieve information as needed
 (3) 
 """
+import time
 from datetime import datetime
 import sqlite3
 import asyncio
@@ -97,7 +98,7 @@ async def check_data(since: datetime | None = None) -> str:
     tl_data = {c: curr_data[c]["mean"] for c in curr_data}
 
     await trendline(tl_data)
-
+    start_time = time.perf_counter()
     response = await client.generate(model='qwen2.5:14b',
             system=SYS_PROMPT,
             prompt=f"""Deterministic warnings: {DET_WARNINGS} \n
@@ -106,7 +107,9 @@ async def check_data(since: datetime | None = None) -> str:
                         Trendline: {TRENDLINE}
             """,
         )
-    print(response['response'])
+    duration = round((time.perf_counter - start_time), 2)
+    print(f"calling {FF_ID} to check data took {duration} seconds. Data is from {window_start} until {LAST_CHECK}")
+    # print(response['response'])
     memory.firefighter_summary[FF_ID] = response['response']
     return response['response']
 
@@ -248,7 +251,6 @@ async def main() -> None:
     """
     Runs the checking for deterministic alerts and also to make general summaries at the same time
     """
-    print("hi")
     await asyncio.gather(
         read_live_data(),
         summaries(),

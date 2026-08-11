@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, field_validator, RootModel
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
-from typing import Any, Dict
+from typing import Literal
 
 # A dict of the firefighters ID and their names, for validation
 FIREFIGHTER_NAMES = [1, 2, 3]
@@ -44,7 +44,9 @@ class Analysis(BaseModel):
     """
     The report that is evaluated every time a report or summary from the firefighters come in.
     """
-    threshold: str = "NORMAL" # must be chosen from one of three states: NORMAL, WARNING, ALERT
+    threshold: Literal["NORMAL", "WARNING", "ALERT"]
+    type = Literal["none", "internal", "external"]
+    confidence: float = Field(..., ge=0.0, lt=100.0)
     desc: str= "" # A short description of why this threshold was chosen
     adjust_ffs: list[int]= [] # A list of all the firefighters that need their prompts adjusted!
     @field_validator("adjust_ffs", mode="before")

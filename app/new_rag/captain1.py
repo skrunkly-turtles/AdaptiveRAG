@@ -5,6 +5,7 @@ This is just a temporary thing to sort through the Captain file right now. Agent
 (3) Updates the Memory Manager every cycle
 (4) Changes the cycle as needed in terms of timing, or anything
 """
+import time
 import pool_maker
 import math
 import asyncio
@@ -15,6 +16,7 @@ from firefighters import ff1, ff2, ff3
 from memory_manager import summarize, memory
 from planner import make_plan
 from comms import warning_queue
+from eval import get_results
 
 # The max amount of tokens allowed to generate in a response
 MAX_TOKENS = 200
@@ -26,6 +28,7 @@ FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3}
 
 THRESHOLD = ["NORMAL", "WARNING", "ALERT"]
 
+TYPE = {"none", "internal", "external"}
 CYCLE_GUARDRAILS = {
     "min": 4,
     "max": 45,
@@ -35,7 +38,9 @@ CYCLE_GUARDRAILS = {
 # Hehe all the prompts!
 
 WARN_PROMPT = f"""You are a highly precise English-only analytical agent. 
-                Given the reports from each firefighter in the prompt, return a JSON file EXACTLY as {Analysis}.
+                Given the reports from each firefighter in the prompt, determine if the state of the emergency (IF IT 
+                EXISTS AT ALL) is internal (a bodily harm concerning only one agent) or external (an environmental danger, 
+                where all firefighters should be alerted). Return a JSON file EXACTLY as {Analysis}.
                 [INPUTS]
                 Current State: A description of the summary of the current environment
                 Past Warnings: A dictionary of past warnings that must be taken into consideration
@@ -44,14 +49,20 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 [OUTPUTS in JSON Schema]
                 threshold: the general state is in {THRESHOLD}, where "NORMAL" indicates minimal to no concerns in the environment, "WARNING" 
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
+                type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
+                    "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
+                confidence: a float describing how sure you are of this condition from 1 - 100. 
                 desc: A description of 1-3 sentences outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
                 [EXAMPLE OUTPUT]
-                {{"threshold": "WARNING", "desc": "Firefighter 2 is reporting rising temperature readings that exceed baseline.", "adjust_ffs": [2]}}
+                {{"threshold": "WARNING", "confidence": 87.0, "desc": "Firefighter 2 is reporting rising body temperature readings that exceed baseline.", "adjust_ffs": [2]}}
 
                 [EXAMPLE OUTPUT - NO ADJUSTMENT NEEDED]
-                {{"threshold": "NORMAL", "desc": "All readings are within normal range.", "adjust_ffs": []}}
+                {{"threshold": "NORMAL", "confidence": 76.4, "desc": "All readings are within normal range.", "adjust_ffs": []}}
+
+                [EXAMPLE OUTPUT - EXTERNAL WARNING]
+                {{"threshold": "ALERT", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings for longer than coincidential.", "adjust_ffs": [1, 2, 3]}}
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
@@ -79,8 +90,11 @@ DET_WARN = f"""You are a concise English-only agent who has received a determini
                 Environment Summary: The overall description of the environment. 
 
                 [OUTPUTS IN JSON SCHEMA]
-                threshold: the general state is in {THRESHOLD}, where "NORMAL" indicates minimal to no concerns in the environment, "WARNING" 
+                 threshold: the general state is in {THRESHOLD}, where "NORMAL" indicates minimal to no concerns in the environment, "WARNING" 
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
+                type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
+                    "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
+                confidence: a float describing how sure you are of this condition from 1 - 100. 
                 desc: A description of 1-3 sentences outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
 
@@ -100,6 +114,7 @@ async def adjust_ffs(analysis: Analysis) -> None:
     """
     for ff in analysis.adjust_ffs:
         try:
+            start_time = time.perf_counter()
             response = await client.generate(
                 model = 'qwen2.5:14b',
                 system = ADJUST_FFS,
@@ -115,11 +130,12 @@ async def adjust_ffs(analysis: Analysis) -> None:
                     'temperature': 0.2 # A tighter temp means that it rambles less
                 }
             )
+            duration = round((time.perf_counter() - start_time), 2)
             r = Adjust.model_validate_json(response['response'])
         except Exception as e:
             print(f"adjust_ffs has failed for ff{ff}: {e}")
             continue
-
+        print(f"adjusting {ff} took {duration} time")
         print(r)
         # SENDING TO THE FIREFIGHTER. I've decided that the new function is called adjust
         await FIREFIGHTER_NAMES[r.ff_id].adjust(r, CYCLE)
@@ -135,6 +151,7 @@ async def receive_warn() -> None:
     while True:
         ff_id, warning = await warning_queue.get()
         try:
+            start_time = time.perf_counter()
             response = await asyncio.wait_for(
                 client.generate(
                     model='qwen2.5:14b',
@@ -153,15 +170,19 @@ async def receive_warn() -> None:
                 ),
                 timeout=15 # The max amount that they await for
             )
+            duration = round((time.perf_counter - start_time), 2)
             r = Analysis.model_validate_json(response['response'])
-            print(f"received warning:    {r}")
+            # print(f"received warning:    {r}")
+            print(f"receiving warning took {duration} seconds")
             await det_cycle(r)
             if r.adjust_ffs:
                     await adjust_ffs(r)
             if r.threshold == "ALERT":
                     # AHAHHA CALL THE PLANNER OKAY?
                     await make_plan(r)
+
             await update_cache(r)
+            get_results(r.type, r.confidence)
 
         # If something doesn't work...
         except asyncio.TimeoutError:
@@ -176,8 +197,8 @@ async def is_warning() -> None:
     Assesses the state of the environment depending on the reports from the firefighters. 
     If necessary will call one or several of the following: Planner, det_cycle, and adjust_ffs. 
     """
-    print("checking the firefighters")
     try:
+        start_time = time.perf_counter()
         response = await client.generate(
             model='qwen2.5:14b',
             system = WARN_PROMPT,
@@ -191,7 +212,9 @@ async def is_warning() -> None:
                 'temperature': 0.2 # A tighter temp means that it rambles less
             }
         )
+        duration = round((time.perf_counter - start_time), 2)
         r = Analysis.model_validate_json(response['response'])
+        print(f"is_warning took {duration} seconds")
 
     # In case something goes wrong
     except asyncio.TimeoutError:
@@ -211,6 +234,8 @@ async def is_warning() -> None:
         await make_plan(r)
 
     await update_cache(r)
+
+    get_results(r.type, r.confidence)
 
 
 # Just updates the cache yay
