@@ -257,7 +257,7 @@ def next_team_tick(state: dict) -> dict:
         if s["elapsed"] >= s["duration"]:
             state[wid] = {"kind": NORMAL, "subtype": 0, "elapsed": 0, "duration": 0}
 
-    return {"label": label, "flagged_worker": flagged_worker, "subtype": subtype_out}
+    return {"vitals": vitals, "label": label, "flagged_worker": flagged_worker, "subtype": subtype_out}
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +324,7 @@ async def start_stream():
         await pool_maker.process_incoming(p3, 3)
 
         if EVAL_MODE:
-            ground_truth.append(step)
+            ground_truth.append(step["label"])
 
         tick += 1
         await asyncio.sleep(TICK_SECONDS)
