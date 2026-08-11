@@ -329,20 +329,21 @@ async def start_stream():
         tick += 1
         await asyncio.sleep(TICK_SECONDS)
 
-    if EVAL_MODE:
         # matrix = record_matrix(ground_truth, PREDICTION_TYPE)
-        avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
-        max_latency = max(LATENCY) if LATENCY else 0.0
-        avg_conf = sum(PREDICTION_CONFIDENCE) / len(PREDICTION_CONFIDENCE) if PREDICTION_CONFIDENCE else 0.0
-        return {
-            "avg_latency": avg_latency,
-            "max_latency": max_latency,
-            "avg_confidence": avg_conf,
-            "ground_truth": ground_truth,
-            "predictions": list(PREDICTION_TYPE),
-            "confidences": list(PREDICTION_CONFIDENCE),
-            "latencies": list(LATENCY),
-        }
+    avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
+    max_latency = max(LATENCY) if LATENCY else 0.0
+    avg_conf = sum(PREDICTION_CONFIDENCE) / len(PREDICTION_CONFIDENCE) if PREDICTION_CONFIDENCE else 0.0
+    a =  {
+        "avg_latency": avg_latency,
+        "max_latency": max_latency,
+        "avg_confidence": avg_conf,
+        "ground_truth": ground_truth,
+        "predictions": list(PREDICTION_TYPE),
+        "confidences": list(PREDICTION_CONFIDENCE),
+        "latencies": list(LATENCY),
+    }
+    print(a)
+    return a
 
 
 async def get_results(type: str, conf: float, time: float, ff: list):
