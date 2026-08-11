@@ -136,7 +136,7 @@ async def adjust_ffs(analysis: Analysis) -> None:
             print(f"adjust_ffs has failed for ff{ff}: {e}")
             continue
         print(f"adjusting {ff} took {duration} time")
-        print(r)
+        # print(r)
         # SENDING TO THE FIREFIGHTER. I've decided that the new function is called adjust
         await FIREFIGHTER_NAMES[r.ff_id].adjust(r, CYCLE)
 
@@ -223,7 +223,7 @@ async def is_warning() -> None:
     except Exception as e:
         print(f"is_warning failed: {e}")
         return
-    print(f"regular cycle checks: {r}")
+    # print(f"regular cycle checks: {r}")
     await det_cycle(r)
 
     # Now we need to call all the actions depending on what the main model has decided.
@@ -270,7 +270,6 @@ async def monitor() -> None:
     """
     This is where we just...do stuff!
     """
-    print("doing stuff")
     while True:
         await asyncio.sleep(CYCLE)
         await summarize()
@@ -292,5 +291,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    print("Evaluating the environment!")
     asyncio.run(main())
