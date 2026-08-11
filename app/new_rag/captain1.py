@@ -279,19 +279,37 @@ async def monitor() -> None:
         await is_warning()
 
 
+# async def main():
+#     await pool_maker.clear_db()
+#     await pool_maker.init_db()
+#     await asyncio.gather(
+#         # generator.start_stream(), # This makes the generator make data every two seconds.
+#         start_stream(),
+#         ff1.main(),
+#         ff2.main(),
+#         ff3.main(),
+#         monitor(),
+#         receive_warn(),
+#     )
 async def main():
     await pool_maker.clear_db()
     await pool_maker.init_db()
-    await asyncio.gather(
-        # generator.start_stream(), # This makes the generator make data every two seconds.
-        start_stream(),
-        ff1.main(),
-        ff2.main(),
-        ff3.main(),
-        monitor(),
-        receive_warn(),
-    )
 
+    background = [
+        asyncio.create_task(ff1.main()),
+        asyncio.create_task(ff2.main()),
+        asyncio.create_task(ff3.main()),
+        asyncio.create_task(monitor()),
+        asyncio.create_task(receive_warn()),
+    ]
+
+    result = await start_stream()  # only this one is expected to finish
+
+    for t in background:
+        t.cancel()
+    await asyncio.gather(*background, return_exceptions=True)
+
+    return result
 
 if __name__ == '__main__':
     asyncio.run(main())
