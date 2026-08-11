@@ -45,7 +45,6 @@ async def compress_window() -> None:
     """
 
     # Logging what is happening
-    print("Compressing turns!")
     try: 
         response = await client.generate(
         model='qwen2.5:14b',
@@ -58,7 +57,7 @@ async def compress_window() -> None:
     )
         # Update the memory!
         memory.data_summary = response['response']
-        print(f"MEMORY SUMMARY: \n {memory.data_summary}")
+        # print(f"MEMORY SUMMARY: \n {memory.data_summary}")
     except Exception as e:
         print(f"Compression failed uh oh :( {e}")
     

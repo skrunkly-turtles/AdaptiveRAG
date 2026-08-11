@@ -99,10 +99,13 @@ DET_WARN = f"""You are a concise English-only agent who has received a determini
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
 
                 [EXAMPLE OUTPUT]
-                {{"threshold": "WARNING", "desc": "Firefighter 2 is reporting rising temperature readings that exceed baseline.", "adjust_ffs": [2]}}
-
-                [EXAMPLE OUTPUT - NO ADJUSTMENT NEEDED]
-                {{"threshold": "NORMAL", "desc": "All readings are within normal range.", "adjust_ffs": []}}
+                                {{"threshold": "WARNING", "confidence": 87.0, "desc": "Firefighter 2 is reporting rising body temperature readings that exceed baseline.", "adjust_ffs": [2]}}
+                
+                                [EXAMPLE OUTPUT - NO ADJUSTMENT NEEDED]
+                                {{"threshold": "NORMAL", "confidence": 76.4, "desc": "All readings are within normal range.", "adjust_ffs": []}}
+                
+                                [EXAMPLE OUTPUT - EXTERNAL WARNING]
+                                {{"threshold": "ALERT", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings for longer than coincidential.", "adjust_ffs": [1, 2, 3]}}
 """
 
 client = ollama.AsyncClient()
