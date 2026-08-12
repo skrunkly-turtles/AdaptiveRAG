@@ -188,8 +188,7 @@ async def receive_warn() -> None:
             )
             duration = round((time.perf_counter() - start_time), 2)
             r = Analysis.model_validate_json(response['response'])
-            # print(f"received warning:    {r}")
-            print(f"receiving warning took {duration} seconds")
+            print(f"received warning:    {r.desc} type: {r.type}")
             await det_cycle(r)
             if r.adjust_ffs:
                     await adjust_ffs(r)
@@ -230,8 +229,7 @@ async def is_warning() -> None:
         )
         duration = round((time.perf_counter() - start_time), 2)
         r = Analysis.model_validate_json(response['response'])
-        print(f"is_warning took {duration} seconds")
-
+        print(f"{r.desc} type: {r.type}")
     # In case something goes wrong
     except asyncio.TimeoutError:
         print(f"is_warning timed out")
