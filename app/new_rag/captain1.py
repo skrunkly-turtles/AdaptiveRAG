@@ -55,6 +55,19 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 desc: A description of 1 sentence outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
+                [HOW TO DISTINGUISH INTERNAL FROM EXTERNAL]
+                Do not classify based on a single firefighter's heart rate alone - an elevated
+                heart rate by itself is ambiguous and can mean either. Instead:
+                - Check ambient readings (temperature, elevation) across ALL firefighters. If
+                  ambient temperature or elevation is rising or abnormal for MULTIPLE
+                  firefighters at the same time, this is EXTERNAL, even if only one or two
+                  firefighters' heart rates have caught up so far - environmental effects on
+                  vitals lag behind the environmental change itself.
+                - If ambient readings are normal for every firefighter and only ONE
+                  firefighter's vitals (heart rate, oxygen, body temp, gait) are abnormal while
+                  the others are normal, this is INTERNAL.
+                - Weight cross-firefighter correlation over any single firefighter's numbers.
+
                 [EXAMPLE OUTPUT]
                 {{"threshold": "WARNING", "type": "internal", "confidence": 87.0, "desc": "Firefighter 2 is reporting rising body temperature readings that exceed baseline.", "adjust_ffs": [2]}}
 
@@ -62,7 +75,7 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 {{"threshold": "NORMAL", "type": "none", "confidence": 76.4, "desc": "All readings are within normal range.", "adjust_ffs": []}}
 
                 [EXAMPLE OUTPUT - EXTERNAL WARNING]
-                {{"threshold": "ALERT", "type": "external", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings for longer than coincidential.", "adjust_ffs": [1, 2, 3]}}
+                {{"threshold": "ALERT", "type": "external", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings, which likely means an external factor.", "adjust_ffs": [1, 2, 3]}}
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
@@ -105,7 +118,7 @@ DET_WARN = f"""You are a concise English-only agent who has received a determini
                 {{"threshold": "NORMAL", "type": "none", "confidence": 76.4, "desc": "All readings are within normal range.", "adjust_ffs": []}}
 
                 [EXAMPLE OUTPUT - EXTERNAL WARNING]
-                {{"threshold": "ALERT", "type": "external", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings for longer than coincidential.", "adjust_ffs": [1, 2, 3]}}
+                {{"threshold": "ALERT", "type": "external", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings, which likely means an external factor.", "adjust_ffs": [1, 2, 3]}}
 """
 
 client = ollama.AsyncClient()
