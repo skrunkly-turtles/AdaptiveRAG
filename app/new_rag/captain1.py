@@ -56,15 +56,11 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
                 [HOW TO DISTINGUISH INTERNAL FROM EXTERNAL]
-                Do not classify based on a single firefighter's heart rate alone - an elevated
-                heart rate by itself is ambiguous and can mean either. Instead:
-                - Check ambient readings (temperature, elevation) across ALL firefighters. If
-                  ambient temperature or elevation is rising or abnormal for MULTIPLE
-                  firefighters at the same time, this is EXTERNAL, even if only one or two
-                  firefighters' heart rates have caught up so far - environmental effects on
+                Do not classify based on a single firefighter's heart rate alone - an elevated heart rate by itself is ambiguous and can mean either. Instead:
+                - Check ambient readings (temperature, elevation) across ALL firefighters. If ambient temperature or elevation is rising or abnormal for MULTIPLE
+                  firefighters at the same time, this is EXTERNAL, even if only one or two firefighters' heart rates have caught up so far - environmental effects on
                   vitals lag behind the environmental change itself.
-                - If ambient readings are normal for every firefighter and only ONE
-                  firefighter's vitals (heart rate, oxygen, body temp, gait) are abnormal while
+                - If ambient readings are normal for every firefighter and only ONE firefighter's vitals (heart rate, oxygen, body temp, gait) are abnormal while
                   the others are normal, this is INTERNAL.
                 - Weight cross-firefighter correlation over any single firefighter's numbers.
 

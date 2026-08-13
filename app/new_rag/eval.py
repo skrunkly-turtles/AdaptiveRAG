@@ -36,8 +36,7 @@ from memory_manager import memory
 
 NUM_WORKERS = 3
 TICK_SECONDS = 2
-MIN_ANOMALY_TICKS = 10   # an anomaly, once triggered, lasts AT LEAST this long
-MAX_ANOMALY_TICKS = 20   # and at most this long, picked at random per episode
+ANOMALY_TICKS = 5        # every anomaly episode (internal or external) lasts EXACTLY this many ticks
 
 EVAL_MODE = True         # True: run NUM_TEST_TICKS ticks and score results.
 NUM_TEST_TICKS = 200     # False (generator mode): stream forever, like generator.py.
@@ -193,71 +192,66 @@ def external_bad(subtype: int, elapsed: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Team state machine - this is what enforces the >=10 tick minimum duration
+# Team state - ONE fixed-length segment at a time (NORMAL, INTERNAL, or
+# EXTERNAL), always exactly ANOMALY_TICKS ticks long, so the ground-truth
+# timeline is trivial to read: block boundaries always fall on
+# tick % ANOMALY_TICKS == 0, and every block - normal periods included -
+# is the same length.
 # ---------------------------------------------------------------------------
 
-def _init_team_state() -> dict:
-    return {wid: {"kind": NORMAL, "subtype": 0, "elapsed": 0, "duration": 0}
-            for wid in range(1, NUM_WORKERS + 1)}
-
-
-def _start_episode(state: dict):
-    """Rolls whether a new anomaly episode starts, and for how long it
-    will run. Duration is randomized but always >= MIN_ANOMALY_TICKS."""
+def _roll_segment() -> dict:
+    """Picks the next ANOMALY_TICKS-tick segment. INTERNAL picks one random
+    worker to be affected; EXTERNAL affects all workers; NORMAL affects
+    none. Whichever kind is picked, it always lasts exactly ANOMALY_TICKS
+    ticks - same fixed length as everything else."""
     roll = random.choices([NORMAL, INTERNAL, EXTERNAL], weights=[20, 5, 2], k=1)[0]
-    duration = random.randint(MIN_ANOMALY_TICKS, MAX_ANOMALY_TICKS)
-
     if roll == INTERNAL:
-        wid = random.choice(list(state.keys()))
-        state[wid] = {"kind": INTERNAL, "subtype": random.randint(1, 7),
-                      "elapsed": 0, "duration": duration}
-    elif roll == EXTERNAL:
-        subtype = random.randint(1, 4)
-        for w in state:
-            state[w] = {"kind": EXTERNAL, "subtype": subtype,
-                        "elapsed": 0, "duration": duration}
+        return {"kind": INTERNAL, "subtype": random.randint(1, 7),
+                "worker": random.randint(1, NUM_WORKERS), "elapsed": 0}
+    if roll == EXTERNAL:
+        return {"kind": EXTERNAL, "subtype": random.randint(1, 4),
+                "worker": None, "elapsed": 0}
+    return {"kind": NORMAL, "subtype": 0, "worker": None, "elapsed": 0}
 
 
-def next_team_tick(state: dict) -> dict:
+def _init_segment() -> dict:
+    """Starts 'used up' so the very first call to next_team_tick() rolls a
+    fresh segment immediately."""
+    return {"kind": NORMAL, "subtype": 0, "worker": None, "elapsed": ANOMALY_TICKS}
+
+
+def next_team_tick(segment: dict) -> tuple:
     """
-    Advances the whole team by one tick and returns:
-      {"vitals": {worker_id: vitals_dict}, "label": NORMAL/INTERNAL/EXTERNAL,
-       "flagged_worker": worker_id or None, "subtype": int or None}
+    Advances by one tick within the current fixed-length segment, rolling
+    a brand new segment every ANOMALY_TICKS ticks (NORMAL included).
 
-    An anomaly, once started, is NOT allowed to resolve before it has run
-    for `duration` ticks (>= MIN_ANOMALY_TICKS) - that's what makes the
-    scenario realistic instead of flickering on and off every couple of
-    seconds.
+    Returns (step, segment):
+      step = {"vitals": {worker_id: vitals_dict}, "label": NORMAL/INTERNAL/EXTERNAL,
+              "flagged_worker": worker_id or None, "subtype": int or None}
+      segment = the (possibly freshly-rolled) segment to pass back in on
+                the next call.
     """
-    active = [wid for wid, s in state.items() if s["kind"] != NORMAL]
-    if not active:
-        _start_episode(state)
+    if segment["elapsed"] >= ANOMALY_TICKS:
+        segment = _roll_segment()
 
     vitals = {}
-    label = NORMAL
-    flagged_worker = None
-    subtype_out = None
-
-    for wid, s in state.items():
-        if s["kind"] == NORMAL:
+    for wid in range(1, NUM_WORKERS + 1):
+        if segment["kind"] == NORMAL:
             vitals[wid] = baseline_vitals()
-            continue
+        elif segment["kind"] == INTERNAL:
+            vitals[wid] = internal_bad(segment["subtype"]) if wid == segment["worker"] else healthy_vitals()
+        else:  # EXTERNAL - every worker gets the same subtype/elapsed, so ambient moves together
+            vitals[wid] = external_bad(segment["subtype"], segment["elapsed"] + 1)
 
-        s["elapsed"] += 1
-        if s["kind"] == INTERNAL:
-            vitals[wid] = internal_bad(s["subtype"])
-            label = INTERNAL
-            flagged_worker = wid
-            subtype_out = s["subtype"]
-        else:  # EXTERNAL
-            vitals[wid] = external_bad(s["subtype"], s["elapsed"])
-            label = EXTERNAL
-            subtype_out = s["subtype"]
+    segment["elapsed"] += 1
 
-        if s["elapsed"] >= s["duration"]:
-            state[wid] = {"kind": NORMAL, "subtype": 0, "elapsed": 0, "duration": 0}
-
-    return {"vitals": vitals, "label": label, "flagged_worker": flagged_worker, "subtype": subtype_out}
+    step = {
+        "vitals": vitals,
+        "label": segment["kind"],
+        "flagged_worker": segment["worker"] if segment["kind"] == INTERNAL else None,
+        "subtype": segment["subtype"] if segment["kind"] != NORMAL else None,
+    }
+    return step, segment
 
 
 # ---------------------------------------------------------------------------
@@ -311,12 +305,12 @@ async def start_stream():
     keep a parallel list of ground truth so the two can be lined up and
     scored once the stream ends.
     """
-    state = _init_team_state()
+    segment = _init_segment()
     ground_truth = []
 
     tick = 0
     while (EVAL_MODE and tick < NUM_TEST_TICKS) or not EVAL_MODE:
-        step = next_team_tick(state)
+        step, segment = next_team_tick(segment)
         p1, p2, p3 = step["vitals"][1], step["vitals"][2], step["vitals"][3]
 
         await pool_maker.process_incoming(p1, 1)
