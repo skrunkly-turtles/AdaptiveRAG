@@ -1,38 +1,12 @@
 """
-This file replaces generator.py as the data source AND doubles as the
-accuracy evaluator. It streams realistic per-worker vitals to
-pool_maker.process_incoming(vitals, worker_id) - same call pattern as
-generator.py, one call per worker per tick.
-
-Scoring is NOT done by reading process_incoming's return value. The
-captain (captain1.py) is the one deciding the team-level verdict each
-cycle, and it reports that verdict back by calling get_results(type,
-conf, time) below, once per cycle, as the stream runs. So this file's
-job is: (a) generate ground truth with real cross-worker correlation,
-(b) send it to pool_maker, (c) let the captain fill in PREDICTION_TYPE /
-PREDICTION_CONFIDENCE / LATENCY via get_results as it goes, and (d) once
-the stream ends, line those up against ground truth and score them.
-
-KEY DESIGN PRINCIPLE:
-
-  A rising heart rate is ambiguous at the single-worker level. It could be a cardiac event (INTERNAL/medical) 
-  or the room getting hot (EXTERNAL/environmental) - and those demand opposite responses: pull one person for medical care, vs. withdraw the whole team.
-
-    - EXTERNAL: every worker's ambient temp/elevation rises together,
-      tick after tick; HR only follows later, for everyone, as a
-      secondary effect.
-    - INTERNAL: exactly one worker's vitals go bad while ambient stays
-      normal and the other two workers stay normal the whole time.
+This is the eval file yay
 """
-
+import numpy as np
 import random
 import asyncio
 from datetime import datetime
 import pool_maker
-from memory_manager import memory
 
-# Config
-# ---------------------------------------------------------------------------
 
 NUM_WORKERS = 3
 TICK_SECONDS = 2
@@ -41,10 +15,6 @@ ANOMALY_TICKS = 5        # every anomaly episode (internal or external) lasts EX
 EVAL_MODE = True         # True: run NUM_TEST_TICKS ticks and score results.
 NUM_TEST_TICKS = 200     # False (generator mode): stream forever, like generator.py.
 
-# Filled in by get_results(), called from captain1.py once per cycle as
-# the stream runs - NOT by this file. Index i in each of these three
-# lists is assumed to correspond to tick i's ground truth, i.e. the
-# captain calls get_results() exactly once per tick, in order.
 PREDICTION_TYPE = []
 PREDICTION_CONFIDENCE = []
 LATENCY = []
@@ -84,11 +54,7 @@ HRV = [(40, 110, 0.9), (15, 39, 0.05), (111, 200, 0.05)]
 BODY_TEMP = [(36.5, 38, 0.9), (25, 36, 0.04), (38.1, 45, 0.06)]
 GAIT_DIFF = [(0.0, 1.9, 0.9), (1.91, 2.9, 0.06), (3.0, 5.0, 0.04)]
 
-# Tight, healthy-only ranges used specifically for anomaly scenarios, so an
-# INTERNAL event doesn't accidentally roll a hot ambient temp from the
-# heavy tail of TEMPERATURE, or an EXTERNAL event doesn't accidentally roll
-# a wild HR from the heavy tail of HEART_RATE_RANGES. Ground truth needs to
-# be unambiguous for scoring to mean anything.
+
 _HEALTHY_HR = (55, 95)
 _HEALTHY_O2 = (96, 100)
 _HEALTHY_ELEV = (-5, 10)
@@ -112,9 +78,7 @@ def baseline_vitals() -> dict:
 
 
 def healthy_vitals() -> dict:
-    """Like baseline_vitals(), but clamped to the healthy band only - used
-    as the starting point for anomaly scenarios and for every worker who
-    is NOT part of the current anomaly, so ground truth stays unambiguous."""
+    """This is the health yum"""
     return {
         "time": datetime.now().isoformat(),
         "hr": int(round(random.uniform(*_HEALTHY_HR))),
@@ -128,15 +92,9 @@ def healthy_vitals() -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Anomaly generators
-# ---------------------------------------------------------------------------
-
 def internal_bad(subtype: int) -> dict:
     """
-    One worker's vitals for a MEDICAL anomaly. Ambient fields (temp,
-    elevation) stay in the healthy band on purpose - that's what makes it
-    distinguishable from an environmental event.
+   One worker's internal vitals goes wack, the subtye as defined somewhere above.
     """
     v = healthy_vitals()
     if subtype in (1, 2):  # heart attack / stroke
@@ -167,9 +125,7 @@ def internal_bad(subtype: int) -> dict:
 
 def external_bad(subtype: int, elapsed: int) -> dict:
     """
-    One worker's vitals for an ENVIRONMENTAL anomaly at a given elapsed
-    tick count. Called with the SAME subtype/elapsed for every worker in
-    the same tick, so ambient fields move together for everyone. HR only
+    Calls for ambient fields move together for everyone. HR only
     rises later, as a secondary heat-stress effect - never as the first
     or only signal.
     """
@@ -191,19 +147,12 @@ def external_bad(subtype: int, elapsed: int) -> dict:
     return v
 
 
-# ---------------------------------------------------------------------------
-# Team state - ONE fixed-length segment at a time (NORMAL, INTERNAL, or
-# EXTERNAL), always exactly ANOMALY_TICKS ticks long, so the ground-truth
-# timeline is trivial to read: block boundaries always fall on
-# tick % ANOMALY_TICKS == 0, and every block - normal periods included -
-# is the same length.
-# ---------------------------------------------------------------------------
 
 def _roll_segment() -> dict:
     """Picks the next ANOMALY_TICKS-tick segment. INTERNAL picks one random
     worker to be affected; EXTERNAL affects all workers; NORMAL affects
     none. Whichever kind is picked, it always lasts exactly ANOMALY_TICKS
-    ticks - same fixed length as everything else."""
+    ticks - same fixed length as everything else. """
     roll = random.choices([NORMAL, INTERNAL, EXTERNAL], weights=[20, 5, 2], k=1)[0]
     if roll == INTERNAL:
         return {"kind": INTERNAL, "subtype": random.randint(1, 7),
@@ -225,11 +174,10 @@ def next_team_tick(segment: dict) -> tuple:
     Advances by one tick within the current fixed-length segment, rolling
     a brand new segment every ANOMALY_TICKS ticks (NORMAL included).
 
-    Returns (step, segment):
+    Returns (step, segment) where:
       step = {"vitals": {worker_id: vitals_dict}, "label": NORMAL/INTERNAL/EXTERNAL,
               "flagged_worker": worker_id or None, "subtype": int or None}
-      segment = the (possibly freshly-rolled) segment to pass back in on
-                the next call.
+      segment = the segment to pass onto the next call.
     """
     if segment["elapsed"] >= ANOMALY_TICKS:
         segment = _roll_segment()
@@ -240,7 +188,7 @@ def next_team_tick(segment: dict) -> tuple:
             vitals[wid] = baseline_vitals()
         elif segment["kind"] == INTERNAL:
             vitals[wid] = internal_bad(segment["subtype"]) if wid == segment["worker"] else healthy_vitals()
-        else:  # EXTERNAL - every worker gets the same subtype/elapsed, so ambient moves together
+        else: 
             vitals[wid] = external_bad(segment["subtype"], segment["elapsed"] + 1)
 
     segment["elapsed"] += 1
@@ -254,32 +202,15 @@ def next_team_tick(segment: dict) -> tuple:
     return step, segment
 
 
-# ---------------------------------------------------------------------------
-# Scoring
-# ---------------------------------------------------------------------------
-
 def record_matrix(ground_truth: list, predicted_types: list) -> dict:
     """
     Confusion matrix over the three team-level labels, built from the
     captain's own reported verdicts (PREDICTION_TYPE, via get_results),
     not from anything this file inferred itself.
-
-    ground_truth[i] is a step dict from next_team_tick().
-    predicted_types[i] is the string the captain passed to get_results()
-    for that same cycle - "normal" / "internal" / "external".
-
-    NOTE: get_results() doesn't take a worker id, only a type/confidence/
-    latency, so this can't currently check whether the captain named the
-    *correct* worker for an INTERNAL event - only whether it got the
-    normal/internal/external classification right. If captain1.py starts
-    passing a worker id too, that check can be added back here.
     """
     n = min(len(ground_truth), len(predicted_types))
     if len(ground_truth) != len(predicted_types):
-        print(f"warning: ground_truth has {len(ground_truth)} ticks but "
-              f"PREDICTION_TYPE has {len(predicted_types)} entries - "
-              f"get_results() wasn't called exactly once per tick. "
-              f"Scoring only the first {n} aligned entries.")
+        print(f"ground truth and predicted not the same length...")
 
     matrix = {actual: {predicted: 0 for predicted in LABELS} for actual in LABELS}
     for truth, predicted in zip(ground_truth[:n], predicted_types[:n]):
@@ -289,23 +220,14 @@ def record_matrix(ground_truth: list, predicted_types: list) -> dict:
 
     return matrix
 
-# ---------------------------------------------------------------------------
-# Main stream - replaces generator.py's start_stream()
-# ---------------------------------------------------------------------------
 
 async def start_stream():
     """
-    Streams p1, p2, p3 (one per worker) to pool_maker.process_incoming
-    every TICK_SECONDS, same call pattern as generator.py.
-
-    This function does NOT capture or time the system's verdict itself -
-    the captain (captain1.py) watches the stream and calls get_results()
-    once per cycle as it goes, filling PREDICTION_TYPE /
-    PREDICTION_CONFIDENCE / LATENCY on its own. All this loop does is
-    keep a parallel list of ground truth so the two can be lined up and
-    scored once the stream ends.
+    Streams to all the firefighters yay. At the end, it will produce a nice matrix of all the
+    information of that session.
     """
     segment = _init_segment()
+    
     ground_truth = []
 
     tick = 0
@@ -325,10 +247,12 @@ async def start_stream():
 
         # matrix = record_matrix(ground_truth, PREDICTION_TYPE)
     avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
+    percentile_latency = np.percentile(LATENCY, 95)
     max_latency = max(LATENCY) if LATENCY else 0.0
     avg_conf = sum(PREDICTION_CONFIDENCE) / len(PREDICTION_CONFIDENCE) if PREDICTION_CONFIDENCE else 0.0
     a =  {
         "avg_latency": avg_latency,
+        "95th percentile latency": percentile_latency,
         "max_latency": max_latency,
         "avg_confidence": avg_conf,
         "ground_truth": ground_truth,
@@ -339,6 +263,12 @@ async def start_stream():
     print(a)
     return a
 
+
+def clear_csv(){
+    """Just clears the CSV output file every time eval is called.
+    """
+    raise NotImplementedError
+}
 
 async def get_results(type: str, conf: float, time: float, ff: list):
     """

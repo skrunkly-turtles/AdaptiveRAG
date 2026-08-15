@@ -1,18 +1,6 @@
 """
 Deterministic per-window summaries for each firefighter, sent to worker agents.
 
-Changes from the original:
-- No more module-level LAST_TIME global. `since` is now a required argument.
-  The caller (your polling loop) owns per-ff timing, not this module. This
-  removes the ff1/ff2/ff3 desync bug that depended on call order, and makes
-  the function callable identically twice on identical input -- which Test 6
-  (consistency) needs to even be well-defined.
-- The arithmetic is split into compute_stats(), a pure function with no DB,
-  no clock, no globals. get_data() is now a thin wrapper: fetch rows, hand
-  the raw list to compute_stats(), filter down to each metric's declared keys.
-  compute_stats() is what Test 1 and Test 5 call directly.
-- missing_frac / n are now real numbers, computed against the true row count
-  in the window (a separate COUNT(*) query), not silently dropped.
 """
 import aiosqlite
 import statistics
@@ -57,6 +45,7 @@ def compute_stats(values: list, expected_n: int | None = None) -> dict:
 
     values:      readings for this metric in the window (None entries allowed
                  and treated as missing).
+                 
     expected_n:  total rows in the window (across all metrics), used to compute
                  missing_frac. Defaults to len(values) if not given, i.e.
                  "nothing outside this list was possible."
