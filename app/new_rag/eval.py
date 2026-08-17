@@ -1,7 +1,7 @@
 """
 This is the eval file yay
 """
-import csv
+from pathlib import Path
 import numpy as np
 import random
 import asyncio
@@ -223,12 +223,7 @@ def record_matrix(ground_truth: list, predicted_types: list) -> dict:
 
 
 async def start_stream():
-    """
-    Streams to all the firefighters yay. At the end, it will produce a nice matrix of all the
-    information of that session.
-    """
     segment = _init_segment()
-    
     ground_truth = []
 
     tick = 0
@@ -244,14 +239,29 @@ async def start_stream():
             ground_truth.append(step["label"])
 
         tick += 1
+
+        # --- live update every tick ---
+        avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
+        percentile_latency = np.percentile(LATENCY, 95) if LATENCY else 0.0
+        max_latency = max(LATENCY) if LATENCY else 0.0
+        avg_conf = sum(PREDICTION_CONFIDENCE) / len(PREDICTION_CONFIDENCE) if PREDICTION_CONFIDENCE else 0.0
+        live = {
+            "avg_latency": avg_latency,
+            "95th percentile latency": percentile_latency,
+            "max_latency": max_latency,
+            "avg_confidence": avg_conf,
+        }
+        write_markdown(live, ground_truth, list(PREDICTION_TYPE))
+        # --- end live update ---
+
         await asyncio.sleep(TICK_SECONDS)
 
-        # matrix = record_matrix(ground_truth, PREDICTION_TYPE)
+    # final summary (same computation, kept for the returned dict)
     avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
-    percentile_latency = np.percentile(LATENCY, 95)
+    percentile_latency = np.percentile(LATENCY, 95) if LATENCY else 0.0
     max_latency = max(LATENCY) if LATENCY else 0.0
     avg_conf = sum(PREDICTION_CONFIDENCE) / len(PREDICTION_CONFIDENCE) if PREDICTION_CONFIDENCE else 0.0
-    a =  {
+    a = {
         "avg_latency": avg_latency,
         "95th percentile latency": percentile_latency,
         "max_latency": max_latency,
@@ -261,18 +271,43 @@ async def start_stream():
         "confidences": list(PREDICTION_CONFIDENCE),
         "latencies": list(LATENCY),
     }
-    write_csv(a)
+    write_markdown(a, ground_truth, list(PREDICTION_TYPE))
     print(a)
     return a
 
 
-def write_csv(data: dict):
-    """Just clears the CSV output file every time eval is called.
-    """
-    with open('output.csv', 'w', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerows(data)
-        writer.writerow({})
+def write_markdown(data: dict, ground_truth: list, predictions: list) -> None:
+    """Overwrites eval_report.md with the current run's stats. Called every
+    tick so you can watch it update live (e.g. VSCode Markdown Preview)."""
+    matrix = record_matrix(ground_truth, predictions) if ground_truth else None
+
+    lines = [
+        f"# Eval Run — {datetime.now().isoformat(timespec='seconds')}",
+        "",
+        f"**Ticks completed:** {len(ground_truth)} / {NUM_TEST_TICKS if EVAL_MODE else '∞'}",
+        "",
+        "## Latency",
+        f"- avg: {data['avg_latency']:.3f}s",
+        f"- 95th percentile: {data['95th percentile latency']:.3f}s",
+        f"- max: {data['max_latency']:.3f}s",
+        "",
+        f"## Avg confidence: {data['avg_confidence']:.3f}",
+        "",
+    ]
+
+    if matrix:
+        lines.append("## Confusion Matrix (rows = actual, cols = predicted)")
+        lines.append("")
+        header = "| actual \\ predicted | " + " | ".join(LABELS) + " |"
+        sep = "|---" * (len(LABELS) + 1) + "|"
+        lines.append(header)
+        lines.append(sep)
+        for actual in LABELS:
+            row = [str(matrix[actual][p]) for p in LABELS]
+            lines.append(f"| **{actual}** | " + " | ".join(row) + " |")
+        lines.append("")
+
+    Path("eval_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 async def get_results(type: str, conf: float, time: float, ff: list):
     """
