@@ -9,7 +9,7 @@ from datetime import datetime
 import pool_maker
 
 
-NUM_WORKERS = 3
+NUM_WORKERS = 5
 TICK_SECONDS = 2
 ANOMALY_TICKS = 5        # every anomaly episode (internal or external) lasts EXACTLY this many ticks
 

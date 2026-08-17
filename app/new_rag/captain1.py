@@ -12,11 +12,12 @@ import asyncio
 from models1 import Analysis, Adjust, CACHE_CAP
 import generator
 import ollama
-from firefighters import ff1, ff2, ff3
+from firefighters import ff1, ff2, ff3, ff4, ff5
 from memory_manager import summarize, memory
 from planner import make_plan
 from comms import warning_queue
 from eval import get_results, start_stream
+from get_data1 import get_data
 
 # The max amount of tokens allowed to generate in a response
 MAX_TOKENS = 150
@@ -24,7 +25,7 @@ MAX_TOKENS = 150
 # The amount of time for each cycle
 CYCLE = 10
 
-FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3}
+FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3, 4:ff4, 5:ff5}
 
 THRESHOLD = ["NORMAL", "WARNING", "ALERT"]
 
@@ -53,7 +54,7 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
                     "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
                 confidence: a float describing how sure you are of this condition from 1 - 99. 
-                desc: A description of 1 sentence outlining why this threshold was chosen. 
+                desc: A description of 1 sentence outlining why this threshold was chosen. Make sure to explicitly quote data given. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
                 [HOW TO DISTINGUISH INTERNAL FROM EXTERNAL]
@@ -66,13 +67,13 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 - Weight cross-firefighter correlation over any single firefighter's numbers.
 
                 [EXAMPLE OUTPUT]
-                {{"threshold": "WARNING", "type": "internal", "confidence": 87.0, "desc": "Firefighter 2 is reporting rising body temperature readings that exceed baseline.", "adjust_ffs": [2]}}
+                {{"threshold": "WARNING", "type": "internal", "confidence": 87.0, "desc": "Firefighter 2 is reporting rising body temperature readings that exceed baseline at 38 degrees.", "adjust_ffs": [2]}}
 
                 [EXAMPLE OUTPUT - NO ADJUSTMENT NEEDED]
                 {{"threshold": "NORMAL", "type": "none", "confidence": 76.4, "desc": "All readings are within normal range.", "adjust_ffs": []}}
 
                 [EXAMPLE OUTPUT - EXTERNAL WARNING]
-                {{"threshold": "ALERT", "type": "external", "confidence": 50.3, "desc": "All heart rate and outer temperature spikes consistently outside of normal readings, which likely means an external factor.", "adjust_ffs": [1, 2, 3]}}
+                {{"threshold": "ALERT", "type": "external", "confidence": 50.3, "desc": "All heart rate (mean 110bpm, mean 106bpm, mean 120bpm) and outer temperature spikes (40, 45, 39 degrees) consistently outside of normal readings, which likely means an external factor.", "adjust_ffs": [1, 2, 3]}}
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
@@ -185,7 +186,7 @@ async def receive_warn() -> None:
             )
             duration = round((time.perf_counter() - start_time), 2)
             r = Analysis.model_validate_json(response['response'])
-            print(f"received warning:    {r.desc} type: {r.type}")
+            print(f"received warning:    {r.desc} type: {r.type} \n ")
             await det_cycle(r)
             if r.adjust_ffs:
                     await adjust_ffs(r)
@@ -287,18 +288,6 @@ async def monitor() -> None:
         await is_warning()
 
 
-# async def main():
-#     await pool_maker.clear_db()
-#     await pool_maker.init_db()
-#     await asyncio.gather(
-#         # generator.start_stream(), # This makes the generator make data every two seconds.
-#         start_stream(),
-#         ff1.main(),
-#         ff2.main(),
-#         ff3.main(),
-#         monitor(),
-#         receive_warn(),
-#     )
 async def main():
     await pool_maker.clear_db()
     await pool_maker.init_db()
@@ -307,6 +296,8 @@ async def main():
         asyncio.create_task(ff1.main()),
         asyncio.create_task(ff2.main()),
         asyncio.create_task(ff3.main()),
+        asyncio.create_task(ff4.main()),
+        asyncio.create_task(ff5.main()),
         asyncio.create_task(monitor()),
         asyncio.create_task(receive_warn()),
     ]

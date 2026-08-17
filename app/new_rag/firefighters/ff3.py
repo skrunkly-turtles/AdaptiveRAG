@@ -9,8 +9,6 @@ import time
 from datetime import datetime
 import sqlite3
 import asyncio
-import math
-import json
 from models1 import Adjust, Warn, Data
 import ollama
 from typing import Any
@@ -110,7 +108,7 @@ async def check_data(since: datetime | None = None) -> str:
     duration = round((time.perf_counter() - start_time), 2)
     print(f"calling {FF_ID} to check data took {duration} seconds. Data is from {window_start} until {LAST_CHECK}")
     # print(response['response'])
-    memory.firefighter_summary[FF_ID] = response['response']
+    memory.firefighter_summary[FF_ID] = f"Summary: {response['response']} Data: {curr_data}"
     return response['response']
 
 
