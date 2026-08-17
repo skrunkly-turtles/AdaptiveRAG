@@ -240,7 +240,7 @@ async def start_stream():
         await pool_maker.process_incoming(p2, 2)
         await pool_maker.process_incoming(p3, 3)
 
-        if EVAL_MODE:
+        if EVAL_MODE and tick % 5 == 0:
             ground_truth.append(step["label"])
 
         tick += 1
