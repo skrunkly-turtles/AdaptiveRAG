@@ -1,6 +1,7 @@
 """
 This is the eval file yay
 """
+import csv
 import numpy as np
 import random
 import asyncio
@@ -260,15 +261,18 @@ async def start_stream():
         "confidences": list(PREDICTION_CONFIDENCE),
         "latencies": list(LATENCY),
     }
+    write_csv(a)
     print(a)
     return a
 
 
-def clear_csv(){
+def write_csv(data: dict):
     """Just clears the CSV output file every time eval is called.
     """
-    raise NotImplementedError
-}
+    with open('output.csv', 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerows(data)
+        writer.writerow({})
 
 async def get_results(type: str, conf: float, time: float, ff: list):
     """
