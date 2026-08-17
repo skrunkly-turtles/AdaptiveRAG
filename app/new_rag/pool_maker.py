@@ -13,6 +13,10 @@ from models1 import Data
 DB1_PATH = 'data/vitals.db'
 DB2_PATH = 'data/vitals2.db'
 DB3_PATH = 'data/vitals3.db'
+DB4_PATH = 'data/vitals4.db'
+DB5_PATH = 'data/vitals5.db'
+DB6_PATH = 'data/vitals6.db'
+PATHS = [DB1_PATH, DB2_PATH, DB3_PATH, DB4_PATH, DB5_PATH, DB6_PATH]
 
 FF_DB = {1: DB1_PATH, 2: DB2_PATH, 3: DB3_PATH}
 
@@ -21,26 +25,14 @@ async def clear_db() -> None:
     """
     Clears the vitals.db ONCE
     """
-    if os.path.exists(DB1_PATH):
-        try:
-            os.remove(DB1_PATH)
-            print(f"Cleared database: {DB1_PATH}")
-        except PermissionError:
-            print("Could not delete DB1 file. Is another process or viewer open?")
-    
-    if os.path.exists(DB2_PATH):
-        try:
-            os.remove(DB2_PATH)
-            print(f"Cleared database: {DB2_PATH}")
-        except PermissionError:
-            print("Could not delete DB2 file. Is another process or viewer open?")
-    
-    if os.path.exists(DB3_PATH):
-        try:
-            os.remove(DB3_PATH)
-            print(f"Cleared database: {DB3_PATH}")
-        except PermissionError:
-            print("Could not delete DB3 file. Is another process or viewer open?")
+    for p in PATHS:
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+                print(f"Cleared Database: {p}")
+            except PermissionError:
+                print(f"could not delete {p} something is wrong?")
+
 
 async def init_db() -> None:
     for path in (DB1_PATH, DB2_PATH, DB3_PATH):
