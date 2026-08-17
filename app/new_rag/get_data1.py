@@ -9,8 +9,12 @@ from datetime import datetime
 DB1_PATH = 'data/vitals.db'
 DB2_PATH = 'data/vitals2.db'
 DB3_PATH = 'data/vitals3.db'
+DB4_PATH = 'data/vitals4.db'
+DB5_PATH = 'data/vitals5.db'
+DB6_PATH = 'data/vitals6.db'
 
-FF_DB = {1: DB1_PATH, 2: DB2_PATH, 3: DB3_PATH}
+
+FF_DB = {1: DB1_PATH, 2: DB2_PATH, 3: DB3_PATH, 4: DB4_PATH, 5:DB5_PATH, 6:DB6_PATH}
 
 FILES = {
     "ELEVATION": 'elevation',

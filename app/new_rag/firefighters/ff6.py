@@ -30,9 +30,9 @@ TRENDLINE = {
     "gait": []
 }
 
-DB1_PATH = 'data/vitals5.db'
+DB1_PATH = 'data/vitals6.db'
 client = ollama.AsyncClient()
-FF_ID = 5
+FF_ID = 6
 
 ATTEND_TO = []
 

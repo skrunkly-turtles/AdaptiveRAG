@@ -22,7 +22,10 @@ memory = CapMemory(
     firefighter_summary={
         1: "Status: None",
         2: "Status: None",
-        3: "Status: None"
+        3: "Status: None",
+        4:"Status: None",
+        5: "Status: None",
+        6: "Status: None"
     }
 )
 
