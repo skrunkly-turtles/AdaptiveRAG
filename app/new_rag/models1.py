@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Literal
 
 # A dict of the firefighters ID and their names, for validation
-FIREFIGHTER_NAMES = [1, 2, 3]
+FIREFIGHTER_NAMES = [1, 2, 3, 4, 5, 6]
 
 THRESHOLD = ["NORMAL", "WARNING", "ALERT"]
 
