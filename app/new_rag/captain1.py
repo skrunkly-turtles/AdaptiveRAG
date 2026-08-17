@@ -40,7 +40,8 @@ CYCLE_GUARDRAILS = {
 WARN_PROMPT = f"""You are a highly precise English-only analytical agent. 
                 Given the reports from each firefighter in the prompt, determine if the state of the emergency (IF IT 
                 EXISTS AT ALL) is internal (a bodily harm concerning only one agent) or external (an environmental danger, 
-                where all firefighters should be alerted). Return a JSON file EXACTLY as {Analysis}.
+                where all firefighters should be alerted). Return a JSON file EXACTLY as {Analysis}. Use all the summaries from
+                all firefighters, cross referencing their data to create a comprehensive analysis of the environment.
                 [INPUTS]
                 Current State: A description of the summary of the current environment
                 Past Warnings: A dictionary of past warnings that must be taken into consideration
@@ -51,7 +52,7 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                             indicates possible unstable conditions, and "ALERT" indicates that immedate action must be taken by the firefighters.
                 type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
                     "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
-                confidence: a float describing how sure you are of this condition from 1 - 100. 
+                confidence: a float describing how sure you are of this condition from 1 - 99. 
                 desc: A description of 1 sentence outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
