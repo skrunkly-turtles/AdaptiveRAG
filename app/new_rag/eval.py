@@ -263,6 +263,8 @@ async def start_stream():
     }
     write_csv(a)
     print(a)
+    print(len(ground_truth))
+    print(len(PREDICTION_TYPE))
     return a
 
 
