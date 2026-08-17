@@ -272,7 +272,7 @@ def write_csv(data: dict):
     with open('output.csv', 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerows(data)
-        writer.writerow()
+        writer.writerow({})
 
 async def get_results(type: str, conf: float, time: float, ff: list):
     """
