@@ -18,7 +18,7 @@ DB5_PATH = 'data/vitals5.db'
 DB6_PATH = 'data/vitals6.db'
 PATHS = [DB1_PATH, DB2_PATH, DB3_PATH, DB4_PATH, DB5_PATH, DB6_PATH]
 
-FF_DB = {1: DB1_PATH, 2: DB2_PATH, 3: DB3_PATH}
+FF_DB = {1: DB1_PATH, 2: DB2_PATH, 3: DB3_PATH, 4: DB4_PATH, 5:DB5_PATH, 6:DB6_PATH}
 
 # Clears the db
 async def clear_db() -> None:
@@ -35,7 +35,7 @@ async def clear_db() -> None:
 
 
 async def init_db() -> None:
-    for path in (DB1_PATH, DB2_PATH, DB3_PATH):
+    for path in PATHS:
         async with aiosqlite.connect(path) as db:
             await _init_db(db)
             await db.commit()
