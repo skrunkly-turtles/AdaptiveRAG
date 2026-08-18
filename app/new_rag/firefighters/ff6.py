@@ -249,6 +249,7 @@ async def main() -> None:
     """
     Runs the checking for deterministic alerts and also to make general summaries at the same time
     """
+    print("hi")
     await asyncio.gather(
         read_live_data(),
         summaries(),

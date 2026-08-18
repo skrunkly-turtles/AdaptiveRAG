@@ -7,7 +7,7 @@ FIREFIGHTER_NAMES = [1, 2, 3, 4, 5, 6]
 
 THRESHOLD = ["NORMAL", "WARNING", "ALERT"]
 
-CACHE_CAP = 10
+CACHE_CAP = 15
 
 # Models for the pool maker
 
