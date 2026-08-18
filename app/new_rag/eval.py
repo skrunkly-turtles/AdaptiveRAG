@@ -235,7 +235,7 @@ async def start_stream():
     while (EVAL_MODE and tick < NUM_TEST_TICKS) or not EVAL_MODE:
         step, segment = next_team_tick(segment)
         p = []
-        for s in range(1, len(step["vitals"] + 1)):
+        for s in range(1, len(step["vitals"]) + 1):
             d = step["vitals"][s]
             await pool_maker.process_incoming(d, s)
 
