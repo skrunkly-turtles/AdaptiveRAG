@@ -234,11 +234,10 @@ async def start_stream():
     tick = 0
     while (EVAL_MODE and tick < NUM_TEST_TICKS) or not EVAL_MODE:
         step, segment = next_team_tick(segment)
-        p1, p2, p3 = step["vitals"][1], step["vitals"][2], step["vitals"][3]
-
-        await pool_maker.process_incoming(p1, 1)
-        await pool_maker.process_incoming(p2, 2)
-        await pool_maker.process_incoming(p3, 3)
+        p = []
+        for s in range(1, len(step["vitals"] + 1)):
+            d = step["vitals"][s]
+            await pool_maker.process_incoming(d, s)
 
         if EVAL_MODE and tick % 5 == 0:
             ground_truth.append(step["label"])
