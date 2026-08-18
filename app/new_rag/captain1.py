@@ -12,7 +12,7 @@ import asyncio
 from models1 import Analysis, Adjust, CACHE_CAP
 import generator
 import ollama
-from firefighters import ff1, ff2, ff3, ff4, ff5
+from firefighters import ff1, ff2, ff3, ff4, ff5, ff6
 from memory_manager import summarize, memory
 from planner import make_plan
 from comms import warning_queue
@@ -25,7 +25,7 @@ MAX_TOKENS = 150
 # The amount of time for each cycle
 CYCLE = 10
 
-FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3, 4:ff4, 5:ff5}
+FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3, 4:ff4, 5:ff5, 6:ff6}
 
 THRESHOLD = ["NORMAL", "WARNING", "ALERT"]
 
@@ -299,6 +299,7 @@ async def main():
         asyncio.create_task(ff4.main()),
         asyncio.create_task(ff5.main()),
         asyncio.create_task(monitor()),
+        asyncio.create_task(ff6.main()),
         asyncio.create_task(receive_warn()),
     ]
 

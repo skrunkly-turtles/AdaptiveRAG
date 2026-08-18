@@ -16,7 +16,7 @@ LATEST_DATA = []
 
 client = ollama.AsyncClient()
 
-MAX_TURNS = 6
+MAX_TURNS = 10
 
 memory = CapMemory(
     firefighter_summary={
@@ -60,6 +60,7 @@ async def compress_window() -> None:
     )
         # Update the memory!
         memory.data_summary = response['response']
+        print(memory.firefighter_summary)
         # print(f"MEMORY SUMMARY: \n {memory.data_summary}")
     except Exception as e:
         print(f"Compression failed uh oh :( {e}")
