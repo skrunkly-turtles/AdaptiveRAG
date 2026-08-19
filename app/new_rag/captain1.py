@@ -20,7 +20,7 @@ from eval import get_results, start_stream
 from get_data1 import get_data
 
 # The max amount of tokens allowed to generate in a response
-MAX_TOKENS = 150
+MAX_TOKENS = 300
 
 # The amount of time for each cycle
 CYCLE = 10
