@@ -200,7 +200,7 @@ async def receive_warn() -> None:
                     },
                     format="json"
                 ),
-                # timeout=25 # The max amount that they await for
+                timeout=200 # The max amount that they await for
             )
             duration = round((time.perf_counter() - start_time), 2) + max(memory.firefighter_durations)
 
@@ -221,8 +221,6 @@ async def receive_warn() -> None:
             await get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
         # If something doesn't work...
-        except asyncio.TimeoutError:
-            print(f"receive_warn timed out for ff {ff_id}")
         except Exception as e:
             print(f"receive_warn failed to process warning for ff {ff_id}: {e}")
 
