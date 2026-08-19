@@ -30,7 +30,7 @@ async def dump_one_ff(ff: int, path: str) -> str:
             lines.append("")
             lines.append("| hr | o2 | elevation | temp | respiration | hrv | body_temp | gait |")
             lines.append("|---|---|---|---|---|---|---|---|")
-            for row in rows:
+            for row in latest:
                 lines.append("| " + " |".join(str(v) for v in row) + " |")
             lines.append("")
         else:
