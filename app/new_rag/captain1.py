@@ -5,6 +5,7 @@ This is just a temporary thing to sort through the Captain file right now. Agent
 (3) Updates the Memory Manager every cycle
 (4) Changes the cycle as needed in terms of timing, or anything
 """
+import json
 import time
 import pool_maker
 import math
@@ -19,6 +20,9 @@ from comms import warning_queue
 from eval import get_results, start_stream
 from get_data1 import get_data
 
+# Key words 
+
+# JSON Schemas
 # The max amount of tokens allowed to generate in a response
 MAX_TOKENS = 300
 
@@ -41,7 +45,7 @@ CYCLE_GUARDRAILS = {
 WARN_PROMPT = f"""You are a highly precise English-only analytical agent. 
                 Given the reports from each firefighter in the prompt, determine if the state of the emergency (IF IT 
                 EXISTS AT ALL) is internal (a bodily harm concerning only one agent) or external (an environmental danger, 
-                where all firefighters should be alerted). Return a JSON file EXACTLY as {Analysis}. Use all the summaries from
+                where all firefighters should be alerted). Return a JSON file EXACTLY as {json.dumps(Analysis.model_json_schema(), indent=2)}. Use all the summaries from
                 all firefighters, cross referencing their data to create a comprehensive analysis of the environment.
                 [INPUTS]
                 Current State: A description of the summary of the current environment
@@ -77,7 +81,7 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
-                Given the firefighter_reports, data_summary, and the current warning, return a JSON file EXACTLY as {Adjust}.
+                Given the firefighter_reports, data_summary, and the current warning, return a JSON file EXACTLY as {json.dumps(Adjust.model_json_schema(), indent=2)}.
                 [INPUTS]
                 Firefighter ID: The ID of the firefighter the JSON file is sent to.
                 Current Warning: The most recent analysis of the general environment 
@@ -92,7 +96,7 @@ ADJUST_FFS = f"""You are a precise routing agent.
             """
 
 DET_WARN = f"""You are a concise English-only agent who has received a deterministic flag which requires urgent attention. 
-                Assess the current warning and return ONLY and EXACTLY the JSON: {Analysis} format. 
+                Assess the current warning and return ONLY and EXACTLY the JSON: {json.dumps(Analysis.model_json_schema(), indent=2)} format. 
 
                 [INPUTS]
                 Firefighter in Danger: The ID of the firefighter that has sent the alert
@@ -126,6 +130,8 @@ async def adjust_ffs(analysis: Analysis) -> None:
     """
     This adjusts all the firefighters as needed
     """
+    # for ff in analysis.adjust_ffs:
+        
     for ff in analysis.adjust_ffs:
         try:
             start_time = time.perf_counter()
@@ -188,7 +194,7 @@ async def receive_warn() -> None:
             r = Analysis.model_validate_json(response['response'])
             print(f"received warning:    {r.desc} type: {r.type} \n ")
             await det_cycle(r)
-            if r.adjust_ffs:
+            if r.adjust_ffs != []:
                     await adjust_ffs(r)
             if r.threshold == "ALERT":
                     # AHAHHA CALL THE PLANNER OKAY?

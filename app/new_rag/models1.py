@@ -46,7 +46,7 @@ class Analysis(BaseModel):
     """
     threshold: Literal["NORMAL", "WARNING", "ALERT"] = 'NORMAL'
     type : Literal["none", "internal", "external"] = 'none'
-    confidence: float = Field(..., ge=0.0, lt=100.0)
+    confidence: float = Field(default=0.0, ge=0.0, lt=100.0)
     desc: str= "" # A short description of why this threshold was chosen
     adjust_ffs: list[int]= [] # A list of all the firefighters that need their prompts adjusted!
     @field_validator("adjust_ffs", mode="before")
