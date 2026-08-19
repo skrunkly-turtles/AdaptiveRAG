@@ -26,7 +26,7 @@ async def dump_one_ff(ff: int, path: str) -> str:
             latest = await cursor.fetchall()
 
         if latest:
-            lines.append(f"full reading! ({len(rows)} readings:")
+            lines.append(f"full reading! ({len(latest)} readings:")
             lines.append("")
             lines.append("| hr | o2 | elevation | temp | respiration | hrv | body_temp | gait |")
             lines.append("|---|---|---|---|---|---|---|---|")
