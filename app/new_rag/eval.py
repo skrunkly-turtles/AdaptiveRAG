@@ -246,6 +246,8 @@ async def start_stream():
         await asyncio.sleep(TICK_SECONDS)
 
         # matrix = record_matrix(ground_truth, PREDICTION_TYPE)
+    await asyncio.sleep(400) # This is to help all the calls get logged before we summarize 
+
     avg_latency = sum(LATENCY) / len(LATENCY) if LATENCY else 0.0
     percentile_latency = np.percentile(LATENCY, 95)
     max_latency = max(LATENCY) if LATENCY else 0.0
