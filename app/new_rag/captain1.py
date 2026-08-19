@@ -59,7 +59,7 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
                     "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
                 confidence: a float describing how sure you are of this condition from 1 - 99. 
-                desc: A description of 1 sentence outlining why this threshold was chosen. Make sure to explicitly quote data given. 
+                desc: A description of 1 sentence (max 30 words) outlining why this threshold was chosen. Make sure to explicitly quote data given. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
                 
                 [HOW TO DISTINGUISH INTERNAL FROM EXTERNAL]
@@ -82,7 +82,8 @@ WARN_PROMPT = f"""You are a highly precise English-only analytical agent.
                 """
 
 ADJUST_FFS = f"""You are a precise routing agent.
-                Given the firefighter_reports, data_summary, and the current warning, return a JSON file EXACTLY as {json.dumps(Adjust.model_json_schema(), indent=2)}.
+                Given the firefighter_reports, data_summary, and the current warning. Return a JSON file formatted exactly like [EXAMPLES OUTPUT] but with the 
+                outputs as outlined in [OUTPUTS in JSON Schema].
                 [INPUTS]
                 Firefighter ID: The ID of the firefighter the JSON file is sent to.
                 Current Warning: The most recent analysis of the general environment 
@@ -94,10 +95,14 @@ ADJUST_FFS = f"""You are a precise routing agent.
                 attention: a list of data that the firefighter should pay more attention to.
                 det_numbers: A dictionary of data categories mapped to the NEW values of deterministic triggers. ONLY include 
                             a given category IF its trigger value needs changing. 
+                
+                [EXAMPLE OUTPUTS]
+                {{"ff_id": 3, "attention": ["hr", "o2"], "det_numbers": {{}}}}
             """
 
 DET_WARN = f"""You are a concise English-only agent who has received a deterministic flag which requires urgent attention. 
-                Assess the current warning and return ONLY and EXACTLY the JSON: {json.dumps(Analysis.model_json_schema(), indent=2)} format. 
+                Assess the current warning. Return a JSON file formatted exactly like [EXAMPLES OUTPUT] but with the 
+                outputs as outlined in [OUTPUTS IN JSON Schema].
 
                 [INPUTS]
                 Firefighter in Danger: The ID of the firefighter that has sent the alert
@@ -111,7 +116,7 @@ DET_WARN = f"""You are a concise English-only agent who has received a determini
                 type: the type of concern, if any, in {TYPE}, where "internal" describes a bodily concern (such as a heart attack or fever), 
                     "external" describes an environmental concern (such as a fire), and "none" MUST correspond ONLY and ALWAYS to "NORMAL" threshold.
                 confidence: a float describing how sure you are of this condition from 1 - 100. 
-                desc: A description of 1 sentence outlining why this threshold was chosen. 
+                desc: A description of 1 sentence (max 30 words) outlining why this threshold was chosen. 
                 adjust_ffs: Indicates the firefighters that need a prompt adjustment, depending on some possible alerts.
 
                 [EXAMPLE OUTPUT]
@@ -148,11 +153,16 @@ async def adjust_ffs(analysis: Analysis) -> None:
                 format="json",
                 options={
                     # 'num_predict': MAX_TOKENS,
+                    'num_ctx': 8192,
                     'temperature': 0.2 # A tighter temp means that it rambles less
                 }
             )
             duration = round((time.perf_counter() - start_time), 2)
-            r = Adjust.model_validate_json(response['response'])
+            raw = response["response"]
+            if not raw.strip().endswith('}'):
+                print(f"suspect truncation for {ff}: {len(raw)} chars")
+                raw = raw + "}"
+            r = Adjust.model_validate_json(raw)
         except Exception as e:
             print(f"adjust_ffs has failed for ff{ff}: {e}")
             continue
@@ -184,7 +194,8 @@ async def receive_warn() -> None:
                             Environment Summary: {memory.data_summary}
                             """,
                     options={
-                        'num_predict': MAX_TOKENS,
+                        # 'num_predict': MAX_TOKENS,
+                        'num_ctx': 8192,
                         'temperature': 0.2 # A tighter temp means that it rambles less
                     },
                     format="json"
@@ -192,7 +203,12 @@ async def receive_warn() -> None:
                 timeout=25 # The max amount that they await for
             )
             duration = round((time.perf_counter() - start_time), 2) + max(memory.firefighter_durations)
-            r = Analysis.model_validate_json(response['response'])
+
+            raw = response["response"]
+            if not raw.strip().endswith('}'):
+                print(f"suspect truncation for {ff_id}: {len(raw)} chars")
+                raw = raw + "}"
+            r = Adjust.model_validate_json(raw)
             print(f"received warning:    {r.desc} type: {r.type} \n ")
             await det_cycle(r)
             if r.adjust_ffs != []:
@@ -229,11 +245,16 @@ async def is_warning() -> None:
             format="json",
             options={
                 'num_predict': MAX_TOKENS,
+                'num_ctx': 8192,
                 'temperature': 0.2 # A tighter temp means that it rambles less
             }
         )
         duration = round((time.perf_counter() - start_time), 2)
-        r = Analysis.model_validate_json(response['response'])
+        raw = response["response"]
+        if not raw.strip().endswith('}'):
+            print(f"suspect truncation for is_warning: {len(raw)} chars")
+            raw = raw + "}"
+        r = Analysis.model_validate_json(raw)
         print(f" regular check:        {r.desc} type: {r.type}")
     # In case something goes wrong
     except asyncio.TimeoutError:
