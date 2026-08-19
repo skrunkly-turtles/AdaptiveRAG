@@ -200,7 +200,7 @@ async def receive_warn() -> None:
                     },
                     format="json"
                 ),
-                timeout=25 # The max amount that they await for
+                # timeout=25 # The max amount that they await for
             )
             duration = round((time.perf_counter() - start_time), 2) + max(memory.firefighter_durations)
 
@@ -208,7 +208,7 @@ async def receive_warn() -> None:
             if not raw.strip().endswith('}'):
                 print(f"suspect truncation for {ff_id}: {len(raw)} chars")
                 raw = raw + "}"
-            r = Adjust.model_validate_json(raw)
+            r = Analysis.model_validate_json(raw)
             print(f"received warning:    {r.desc} type: {r.type} \n ")
             await det_cycle(r)
             if r.adjust_ffs != []:
