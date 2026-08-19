@@ -110,6 +110,7 @@ async def check_data(since: datetime | None = None) -> str:
     print(f"calling {FF_ID} to check data took {duration} seconds. Data is from {window_start} until {LAST_CHECK}")
     print(response['response'])
     memory.firefighter_summary[FF_ID] = f"Summary: {response['response']} Data: {curr_data}"
+    memory.firefighter_durations[FF_ID - 1] = duration
     return response['response']
 
 

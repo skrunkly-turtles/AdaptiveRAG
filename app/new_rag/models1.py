@@ -82,6 +82,7 @@ class CapMemory(BaseModel):
     data_cache: list[tuple[str, str]] = [] # A list of the past warning threshold mapped to a description of what it was about
     data_summary: str = "" # A short description of the current state of the environment 
     firefighter_summary: dict[int, str] = {} # A description of each firefighter, mapped from their id.
+    firefighter_durations: list[float] = [0,0,0,0,0,0] # A list of how long each firefighter took. 
 
 # Models for Planner
 

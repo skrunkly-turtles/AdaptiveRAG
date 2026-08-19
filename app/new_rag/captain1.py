@@ -184,7 +184,7 @@ async def receive_warn() -> None:
                 ),
                 timeout=25 # The max amount that they await for
             )
-            duration = round((time.perf_counter() - start_time), 2)
+            duration = round((time.perf_counter() - start_time), 2) + max(memory.firefighter_durations)
             r = Analysis.model_validate_json(response['response'])
             print(f"received warning:    {r.desc} type: {r.type} \n ")
             await det_cycle(r)
