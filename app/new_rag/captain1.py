@@ -33,6 +33,10 @@ FIREFIGHTER_NAMES = {1: ff1, 2: ff2, 3: ff3, 4:ff4, 5:ff5, 6:ff6}
 
 THRESHOLD = ["NORMAL", "WARNING", "ALERT"]
 
+DATA = ["hr", "o2", "elevation", "hrv", "gait", "body_temp", "temp", "heart rate", "oxygen"]
+ALL_KEY = ["external", "environment", "fire", "temp"]
+
+
 TYPE = {"none", "internal", "external"}
 CYCLE_GUARDRAILS = {
     "min": 4,
@@ -131,45 +135,35 @@ DET_WARN = f"""You are a concise English-only agent who has received a determini
 
 client = ollama.AsyncClient()
 
-# This adjusts the firefighter parameters as needed
+# This adjusts the firefighter parameters as needed, This is a deterministic version of adjust, to reduce latency
+# hopefully not at the expense of any accuracy.
+
 async def adjust_ffs(analysis: Analysis) -> None:
     """
     This adjusts all the firefighters as needed
     """
-    # for ff in analysis.adjust_ffs:
-        
-    for ff in analysis.adjust_ffs:
-        try:
-            start_time = time.perf_counter()
-            response = await client.generate(
-                model = 'qwen2.5:14b',
-                system = ADJUST_FFS,
-                prompt = f"""
-                        Firefighter ID: {ff} \n
-                        Current Warning: {analysis.threshold} \n
-                        Current Deterministic Guardrails: {FIREFIGHTER_NAMES[ff].DET_WARNINGS}
-                        Firefighter Summaries: {memory.firefighter_summary}
-                        """,
-                format="json",
-                options={
-                    # 'num_predict': MAX_TOKENS,
-                    'num_ctx': 8192,
-                    'temperature': 0.2 # A tighter temp means that it rambles less
-                }
+    task = []
+    for ff in FIREFIGHTER_NAMES:
+        att = []
+        if analysis.type == 'external':
+            att.append("ambient data")
+            for d in ALL_KEY:
+                if d in analysis.desc:
+                    att.append(d)
+
+        for f in analysis.adjust_ffs:
+            for d in DATA:
+                if d in analysis.desc and analysis.desc.find(d) > analysis.desc.find(f):
+                    att.append(d)
+        if att != []:
+            r = Adjust(
+                ff_id = ff,
+                attention=att,
             )
-            duration = round((time.perf_counter() - start_time), 2)
-            raw = response["response"]
-            if not raw.strip().endswith('}'):
-                print(f"suspect truncation for {ff}: {len(raw)} chars")
-                raw = raw + "}"
-            r = Adjust.model_validate_json(raw)
-        except Exception as e:
-            print(f"adjust_ffs has failed for ff{ff}: {e}")
-            continue
-        print(f"adjusting {ff} took {duration} time")
-        # print(r)
-        # SENDING TO THE FIREFIGHTER. I've decided that the new function is called adjust
-        await FIREFIGHTER_NAMES[r.ff_id].adjust(r, CYCLE)
+            task.append(FIREFIGHTER_NAMES[ff].adjust(r, CYCLE))
+    if task:
+        await asyncio.gather(*task)                
+            
 
 # When we receive deterministic warnings from the firefighters, this function is called. 
 

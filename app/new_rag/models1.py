@@ -62,7 +62,6 @@ class Adjust(BaseModel):
     """
     ff_id: int # The ID of the firefighter yay
     attention: list[str] = [] # Specific aspects the firefighter should pay attention to
-    det_numbers: dict[str, list[int|float]] = {} # A dictionary of the deterministic triggers that need changing. 
 
 class Alert(BaseModel):
     """

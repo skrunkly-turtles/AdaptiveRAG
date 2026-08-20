@@ -73,10 +73,10 @@ async def adjust(params: Adjust, cycle: int) -> None:
     ATTEND_TO = params.attention
 
     global DET_WARNINGS
-    for w in params.det_numbers:
-        if w not in DET_WARNINGS:
-            raise ValueError(f"{w} not a category of data bruh")
-        DET_WARNINGS[w] = params.det_numbers[w]
+    # for w in params.det_numbers:
+    #     if w not in DET_WARNINGS:
+    #         raise ValueError(f"{w} not a category of data bruh")
+    #     DET_WARNINGS[w] = params.det_numbers[w]
 
 
 async def check_data(since: datetime | None = None) -> str:
