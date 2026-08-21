@@ -152,8 +152,9 @@ async def adjust_ffs(analysis: Analysis) -> None:
                     att.append(d)
 
         for f in analysis.adjust_ffs:
+            f_str = str(f)
             for d in DATA:
-                if d in analysis.desc and analysis.desc.find(d) > analysis.desc.find(f):
+                if d in analysis.desc and f_str in analysis.desc and analysis.desc.find(d) > analysis.desc.find(f_str):
                     att.append(d)
         if att != []:
             r = Adjust(
@@ -210,8 +211,8 @@ async def receive_warn() -> None:
             if r.threshold == "ALERT":
                     # AHAHHA CALL THE PLANNER OKAY?
                     await make_plan(r)
-
-            await update_cache(r)
+            if r.type != 'none':
+                await update_cache(r)
             await get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
         # If something doesn't work...
@@ -265,7 +266,8 @@ async def is_warning() -> None:
         # AHAHHA CALL THE PLANNER OKAY?
         await make_plan(r)
 
-    await update_cache(r)
+    if r.threshold == "ALERT" or r.threshold == "WARNING":
+        await update_cache(r)
 
     await get_results(r.type, r.confidence, duration, r.adjust_ffs)
 
